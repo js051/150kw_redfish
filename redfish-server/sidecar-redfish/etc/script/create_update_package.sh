@@ -1,32 +1,69 @@
 #!/usr/bin/env bash
 
 ###############################################################################
+# redfish-server/sidecar-redfish/etc/script/create_update_package.sh
 #
-# Script Name: create_update_package.sh (v2)
+# 功能描述:
+#   本腳本用於為一個包含多個服務的整合專案 (Monorepo)，建立一個差異化的
+#   離線更新包。它會比對兩個指定的 Git 版本 (TAG 或 Commit HASH)，並只打包
+#   在這兩個版本之間有變動的應用程式碼，以及有差異的 Python 依賴套件。
 #
-# Description:
-#   This script creates a differential offline update package for a multi-service
-#   monorepo project. It compares two specified Git versions (tags or commits)
-#   and packages only the application code that has changed between them, along
-#   with any differing Python dependencies for each service.
-#   The resulting .tar.gz archive contains an automated update script (update.sh)
-#   designed to be executed in a production environment without internet access.
+#   最終產出的 .tar.gz 壓縮檔將包含一個自動化的更新腳本 (update.sh)，
+#   此腳本可在沒有離線環境中，安全、可靠的執行升級。
 #
-# Prerequisites:
-#   - Must be executed from the root directory of the Git repository.
-#   - Requires Git, Python (with pip and venv), and rsync to be installed.
-#   - The target Git tags must exist locally (use 'git fetch --tags' to retrieve them).
+# 先決條件:
+#   - 在LINUX或VM或WSL環境中執行
+#   - 執行腳本的環境需已安裝 Git, Python (包含 pip 與 venv), 以及 rsync。
+#   - 所有需要比對的 Git TAG 必須已存在於本地 (可執行 'git fetch --tags' 來獲取)。
 #
-# Usage:
-#   ./create_update_package.sh <OLD_VERSION> <NEW_VERSION>
+# 使用方法:
+#   ./create_update_package.sh <OLD_TAG> <NEW_TAG>
 #
-# Example:
-#   ./create_update_package.sh v0.2.0 v0.3.0
+# 參數說明:
+#   <舊版號>: 起始版本的 Git TAG 或 Commit HASH。
+#   <新版號>: 要更新到的目標版本的 Git TAG 或 Commit HASH。
 #
+# 使用範例:
+#   ./create_update_package.sh v0.1.0 v0.2.0
+#
+#   chmod +x ./redfish-server/sidecar-redfish/etc/script/create_update_package.sh
+#   ./redfish-server/sidecar-redfish/etc/script/create_update_package.sh v0.1.0 v0.2.0
 # ----------------------------------------------------------------------------
 #
-# Verification (Dry Run):
-#   (Your excellent verification steps remain valid here)
+# 更新壓縮包本地驗證流程 (Dry Run):
+#   模擬測試，以確保其內容與邏輯的正確性，建議步驟如下(在根目錄下逐一執行)：
+#
+#   1. 預覽包內容 (確認檔案結構):
+#      tar -tvf ITG_Update_*.tar.gz
+#
+#   2. 建立臨時測試環境:
+#      mkdir -p test_update/update_package
+#      tar -xzf ITG_Update_*.tar.gz -C test_update/update_package
+#      cd test_update/update_package
+#
+#   3. 模擬更新 (最關鍵的一步):
+#      a. 建立一個模擬的生產路徑 (因為我們的專案有多個服務，
+#         所以我們模擬到根目錄即可):
+#         mkdir -p ../mock_prod_env/
+#
+#      b. 暫時修改 update.sh，將 TARGET_DIR 改為模擬路徑。
+#         (可手動編輯，或使用以下 sed 指令自動替換)
+#         sed -i.bak 's|TARGET_DIR="/home/user/service"|TARGET_DIR="../mock_prod_env"|' update.sh
+#
+#      c. 暫時註解掉 update.sh 中需要 root 權限的指令 (如果權限不足)。
+#         例如：開頭的 systemctl 和結尾的 chown。
+#
+#      d. 執行模擬更新:
+#         chmod +x update.sh
+#         ./update.sh
+#
+#   4. 檢查結果:
+#      ls -lR ../mock_prod_env/
+#      # 確認 app/ 中的所有檔案是否已正確複製進來。
+#
+#   5. 清理測試環境:
+#      cd ../..
+#      rm -rf test_update
 #
 ###############################################################################
 
@@ -67,8 +104,8 @@ echo "Workspace cleaned and prepared."
 
 # --- 1. Find and copy changed application files ---
 echo "Finding changed application files..."
-# --diff-filter=d excludes deleted files to prevent errors with git archive
-CHANGED_FILES=$(git diff --name-only --diff-filter=d "$OLD_TAG" "$NEW_TAG")
+# --diff-filter=ACMRT excludes deleted files to prevent errors with git archive
+CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT "$OLD_TAG" "$NEW_TAG")
 
 if [ -z "$CHANGED_FILES" ]; then
     echo "No changed application files found."
@@ -84,10 +121,7 @@ echo "Finding differing Python dependencies across all services..."
 
 # Dynamically find all unique requirements.txt files from both old and new tags
 # This handles cases where requirements files might be added or removed.
-REQUIREMENT_FILES=$( (
-    git ls-tree -r --name-only "$OLD_TAG" | grep 'requirements.txt$'
-    git ls-tree -r --name-only "$NEW_TAG" | grep 'requirements.txt$'
-) | sort -u)
+REQUIREMENT_FILES=$( (git ls-tree -r --name-only "$OLD_TAG" 2>/dev/null || true; git ls-tree -r --name-only "$NEW_TAG") | grep 'requirements.txt$' | sort -u)
 
 if [ -z "$REQUIREMENT_FILES" ]; then
     echo "No requirements.txt files found in the project."
@@ -97,7 +131,8 @@ else
     while IFS= read -r req_file; do
         if git cat-file -e "$OLD_TAG:$req_file" >/dev/null 2>&1; then
             echo "  - Processing $req_file from old tag"
-            git show "$OLD_TAG:$req_file" | pip download --quiet -r /dev/stdin -d old_wheels --platform manylinux2014_x86_64 --python-version 3.10 --only-binary=:all: >/dev/null
+            # python3 -m pip
+            git show "$OLD_TAG:$req_file" | python3 -m pip download --quiet -r /dev/stdin -d old_wheels --platform manylinux2014_x86_64 --python-version 3.10 --only-binary=:all: >/dev/null
         fi
     done <<<"$REQUIREMENT_FILES"
 
@@ -110,7 +145,8 @@ else
             # Ensure the directory exists before copying
             mkdir -p "$UPDATE_DIR/app/$(dirname "$req_file")"
             git show "$NEW_TAG:$req_file" >"$UPDATE_DIR/app/$req_file"
-            pip download --quiet -r "$UPDATE_DIR/app/$req_file" -d new_wheels --platform manylinux2014_x86_64 --python-version 3.10 --only-binary=:all: >/dev/null
+            # python3 -m pip
+            python3 -m pip download --quiet -r "$UPDATE_DIR/app/$req_file" -d new_wheels --platform manylinux2014_x86_64 --python-version 3.10 --only-binary=:all: >/dev/null
         fi
     done <<<"$REQUIREMENT_FILES"
 
