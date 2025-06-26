@@ -23,6 +23,7 @@ from mylib.models.rf_control_model import RfControlSingleLoopExcerptModel
 from mylib.models.rf_filter_model import RfFilterModel
 from mylib.models.rf_leak_detection_model import RfLeakDetectionModel
 from mylib.models.rf_leak_detector_id import RfLeakDetectionIdModel
+from mylib.common.proj_error import ProjRedfishError, ProjRedfishErrorCode
 
 
 from load_env import hardware_info
@@ -72,20 +73,23 @@ class RfThermalEquipmentService(BaseService):
                 timeout=3
             )
             r.raise_for_status()
-        except requests.HTTPError:
+        except requests.HTTPError as e:
             # 如果 CDU 回了 4xx/5xx，直接把它的 status code 和 body 回來
-            try:
-                err_body = r.json()
-            except ValueError:
-                err_body = {"error": r.text}
-            return err_body, r.status_code
+            raise ProjRedfishError(
+                code=ProjRedfishErrorCode.INTERNAL_ERROR,
+                message=f"PATCH {CDU_BASE}/api/v1/cdu/status/op_mode FAIL: details={str(e)}"
+            )
 
         except requests.RequestException as e:
             # 純粹網路／timeout／連線失敗
-            return {
-                "error": "Forwarding to the CDU control service failed",
-                "details": str(e)
-            }, 502
+            # return {
+            #     "error": "Forwarding to the CDU control service failed",
+            #     "details": str(e)
+            # }, 502
+            raise ProjRedfishError(
+                ProjRedfishErrorCode.SERVICE_TEMPORARILY_UNAVAILABLE, 
+                f"Forwarding to the CDU control service failed: {str(e)}"
+            )
         return body, 200
     
     def fetch_CDUs_EnvironmentMetrics(self, cdu_id: str) -> dict:
@@ -364,9 +368,13 @@ class RfThermalEquipmentService(BaseService):
         # 驗證範圍
         scp = hardware_info["Pumps"][pump_id]
         if not (scp["AllowableMin"] <= pump_setpoint <= scp["AllowableMax"]) and pump_setpoint != 0:
-            return {
-                "error": f"pump_speed needs to be between {scp['AllowableMin']} and {scp['AllowableMax']} or 0"
-            }, 400
+            # return {
+            #     "error": f"pump_speed needs to be between {scp['AllowableMin']} and {scp['AllowableMax']} or 0"
+            # }, 400
+            raise ProjRedfishError(
+                code=ProjRedfishErrorCode.GENERAL_ERROR,
+                message=f"pump_speed needs to be between {scp['AllowableMin']} and {scp['AllowableMax']} or 0"
+            )
             
         # 轉發到內部控制 API
         try:
@@ -375,20 +383,23 @@ class RfThermalEquipmentService(BaseService):
                 json={"mode": pump_controlmode, "pump_speed": pump_setpoint},
                 timeout=5
             )
-        except requests.HTTPError:
+        except requests.HTTPError as e:
             # 如果 CDU 回了 4xx/5xx，直接把它的 status code 和 body 回來
-            try:
-                err_body = r.json()
-            except ValueError:
-                err_body = {"error": r.text}
-            return err_body, r.status_code
+            raise ProjRedfishError(
+                code=ProjRedfishErrorCode.INTERNAL_ERROR,
+                message=f"PATCH {CDU_BASE}/api/v1/cdu/status/op_mode FAIL: details={str(e)}"
+            )
 
         except requests.RequestException as e:
             # 純粹網路／timeout／連線失敗
-            return {
-                "error": "Forwarding to the CDU control service failed",
-                "details": str(e)
-            }, 502    
+            # return {
+            #     "error": "Forwarding to the CDU control service failed",
+            #     "details": str(e)
+            # }, 502  
+            raise ProjRedfishError(
+                code=ProjRedfishErrorCode.SERVICE_TEMPORARILY_UNAVAILABLE,
+                message=f"Forwarding to the CDU control service failed: {str(e)}"
+            )  
         
         # 更新內存資料
         m.SpeedControlPercent = RfControlSingleLoopExcerptModel(**{
@@ -460,17 +471,20 @@ class RfThermalEquipmentService(BaseService):
             )
             
             return {"message": f"Pump{pump_id} Update Success"}, r.status_code
-        except requests.HTTPError:
+        except requests.HTTPError as e:
             # 如果 CDU 回了 4xx/5xx，直接把它的 status code 和 body 回來
-            try:
-                err_body = r.json()
-            except ValueError:
-                err_body = {"error": r.text}
-            return err_body, r.status_code
+            raise ProjRedfishError(
+                code=ProjRedfishErrorCode.INTERNAL_ERROR,
+                message=f"PATCH {CDU_BASE}/api/v1/cdu/status/op_mode FAIL: details={str(e)}"
+            )
 
         except requests.RequestException as e:
             # 純粹網路／timeout／連線失敗
-            return {
-                "error": "Forwarding to the CDU control service failed",
-                "details": str(e)
-            }, 502    
+            # return {
+            #     "error": "Forwarding to the CDU control service failed",
+            #     "details": str(e)
+            # }, 502  
+            raise ProjRedfishError(
+                code=ProjRedfishErrorCode.SERVICE_TEMPORARILY_UNAVAILABLE,
+                message=f"Forwarding to the CDU control service failed: {str(e)}"
+            )

@@ -3,6 +3,7 @@
 為了統一api回傳為json，我們設計一個ProjResponseNormalMessage
 '''
 from typing import List, Dict, Any
+from enum import Enum
 from pydantic import (
     BaseModel,
     Field, 
@@ -12,6 +13,7 @@ from pydantic import (
     field_validator,
     field_serializer
 )
+from mylib.models.rf_redfish_error_model import RfRedfishErrorModel, RfRedfishErrorContentsModel
 
 class ProjResponseMessage(BaseModel):
     code: int = Field(default=None)
@@ -24,23 +26,9 @@ class ProjResponseMessage(BaseModel):
                     exclude_none=True
                 )
 
-# class ProjResponseNormalMessage:
-#     def __init__(self, message: str):
-#         self.message = message
+
     
-#     def to_dict(self):
-#         return {
-#             "message": self.message
-#         }
     
-# class ProjResponseErrorMessage:
-#     def __init__(self, code: int, err_msg: str):
-#         self.code = code
-#         self.message = err_msg
-    
-#     def to_dict(self):
-#         return {
-#             "code": self.code,
-#             "message": self.message
-#         }
+
+
         

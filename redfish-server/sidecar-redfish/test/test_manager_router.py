@@ -6,7 +6,7 @@ import time
 from io import BytesIO
 test_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(test_root)
-from .conftest import print_response_details
+from .conftest import print_response_details, AssertType
 from unittest.mock import MagicMock, patch
 from http import HTTPStatus
 from mylib.models.rf_resource_model import RfResetType
@@ -20,12 +20,17 @@ managers_testcases = [
         "endpoint": f'/redfish/v1/Managers/CDU',
         "assert_cases": {
             "@odata.id": f"/redfish/v1/Managers/CDU",
-            "@odata.type": "#Manager.v1_15_0.Manager",
-            "@odata.context": "/redfish/v1/$metadata#Manager.v1_15_0.Manager",
+            "@odata.type": "#Manager.v1_21_0.Manager",
+            "@odata.context": "/redfish/v1/$metadata#Manager.v1_21_0.Manager",
             "Manufacturer": "Supermicro",
             "PartNumber": "LCS-SCDU-200AR001",
-            "Model": "200KW-SideCar-L/A-Colling-CDU",
+            # "Model": "200KW-SideCar-L/A-Colling-CDU",
+            "Model": "200KW SideCar L/A Colling CDU",
             "ServiceIdentification": "ServiceRoot",
+            "TimeZoneName": AssertType.CONFIGURABLE,
+        },
+        "assert_case_descriptions": {
+            "TimeZoneName": "使用者可以設定os時區，此值會顯示成IANA格式，例如：Asia/Taipei"
         }
     } 
 ]
@@ -261,6 +266,8 @@ def test_manager_normal_api(client, basic_auth_header, testcase):
                 assert isinstance(resp_json["Status"], dict)
                 # assert resp_json["Status"]["State"] in ["Absent", "Enabled", "Disabled"]
                 assert resp_json["Status"]["Health"] in ["OK", "Warning", "Critical"]
+            elif isinstance(value, AssertType):
+                pass
             else:
                 assert resp_json[key] == value
             

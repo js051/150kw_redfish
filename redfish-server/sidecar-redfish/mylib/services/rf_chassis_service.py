@@ -16,10 +16,10 @@ from mylib.models.rf_cdu_model import RfCduModel, RfCduCollectionModel
 from mylib.models.rf_control_collection_model import RfControlCollectionExcerptModel
 from cachetools import LRUCache, cached
 from typing import Dict, Any
-
 from load_env import hardware_info
 from mylib.utils.load_api import load_raw_from_api, CDU_BASE
 from mylib.utils.controlUtil import ControlMode_change
+from mylib.common.proj_error import ProjRedfishError, ProjRedfishErrorCode
 
 class RfChassisService(BaseService):
     SENSOR_IDS = {
@@ -435,20 +435,23 @@ class RfChassisService(BaseService):
             
             time.sleep(2)  # 延遲問題要解決 setpoint(目前為暫解)
             return self.get_thermal_subsystem_fans_data(chassis_id, fan_id), 200
-        except requests.HTTPError:
+        except requests.HTTPError as e:
             # 如果 CDU 回了 4xx/5xx，直接把它的 status code 和 body 回來
-            try:
-                err_body = r.json()
-            except ValueError:
-                err_body = {"error": r.text}
-            return err_body, r.status_code
+            raise ProjRedfishError(
+                ProjRedfishErrorCode.INTERNAL_ERROR, 
+                f"PATCH {CDU_BASE}/api/v1/cdu/status/op_mode FAIL: {str(e)}"
+            )
 
         except requests.RequestException as e:
             # 純粹網路／timeout／連線失敗
-            return {
-                "error": "Forwarding to the CDU control service failed",
-                "details": str(e)
-            }, 502
+            # return {
+            #     "error": "Forwarding to the CDU control service failed",
+            #     "details": str(e)
+            # }, 502
+            raise ProjRedfishError(
+                ProjRedfishErrorCode.SERVICE_TEMPORARILY_UNAVAILABLE, 
+                f"Forwarding to the CDU control service failed: {str(e)}"
+            )
             
     
     _operation_mapping = {
@@ -520,20 +523,18 @@ class RfChassisService(BaseService):
             time.sleep(2)
             return self.get_Oem_Spuermicro_Operation(chassis_id)
             # return r.json(), code
-        except requests.HTTPError:
+        except requests.HTTPError as e:
             # 如果 CDU 回了 4xx/5xx，直接把它的 status code 和 body 回來
-            try:
-                err_body = r.json()
-            except ValueError:
-                err_body = {"error": r.text}
-            return err_body, r.status_code
-
+            raise ProjRedfishError(
+                ProjRedfishErrorCode.INTERNAL_ERROR, 
+                f"/api/v1/cdu/status/op_mode FAIL: {str(e)}"
+            )
         except requests.RequestException as e:
             # 純粹網路／timeout／連線失敗
-            return {
-                "error": "Forwarding to the CDU control service failed",
-                "details": str(e)
-            }, 502
+            raise ProjRedfishError(
+                ProjRedfishErrorCode.SERVICE_TEMPORARILY_UNAVAILABLE, 
+                f"Forwarding to the CDU control service failed: {str(e)}"
+            )
             
         
         

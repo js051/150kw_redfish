@@ -43,7 +43,7 @@ class RfFilterModel(RfResourceBaseModel):
         super().__init__(**kwargs)
         self.odata_id = f"/redfish/v1/ThermalEquipment/CDUs/{cdu_id}/Filters/{filter_id}"
         self.odata_type = "#Filter.v1_0_2.Filter"
-        self.odata_context = "/redfish/v1/$metadata#Filter.v1_0_2.Filter"
+        self.Odata_context = "/redfish/v1/$metadata#Filter.Filter"
         
         self.Id = filter_id
         self.Name = f"Filter {filter_id}"

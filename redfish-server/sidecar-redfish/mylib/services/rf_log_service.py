@@ -24,7 +24,7 @@ from mylib.models.rf_log_entry_model import (
 )
 from mylib.models.rf_status_model import RfStatusModel, RfStatusHealth, RfStatusState
 from mylib.utils.DateTimeUtil import DateTimeUtil
-from mylib.common.proj_error import ProjError
+from mylib.common.proj_error import ProjError, ProjRedfishError, ProjRedfishErrorCode
 from mylib.adapters.webapp_json_reader import WebAppJsonReader, WebAppSignalRecordModel
 
 class RfLogService(BaseService):
@@ -67,7 +67,7 @@ class RfLogService(BaseService):
         對應URI: /redfish/v1/Managers/CDU/LogServices/{log_service_id}
         """
         if log_service_id != "1":
-            raise ProjError(HTTPStatus.NOT_FOUND.value, f"/LogService/{log_service_id} is not exist!")
+            raise ProjRedfishError(ProjRedfishErrorCode.RESOURCE_NOT_FOUND, f"/LogService/{log_service_id} is not exist!")
         
         log_entries = WebAppJsonReader.read_all_errorlog_entries()
         is_health = WebAppAPIAdapter.check_health()
@@ -111,7 +111,7 @@ class RfLogService(BaseService):
         對應URI: /redfish/v1/Managers/CDU/LogServices/{log_service_id}/Entries
         """
         if log_service_id != "1":
-            raise ProjError(HTTPStatus.NOT_FOUND.value, f"LogService {log_service_id} is not exist!")
+            raise ProjRedfishError(ProjRedfishErrorCode.RESOURCE_NOT_FOUND, f"LogService {log_service_id} is not exist!")
         
         log_entries = WebAppJsonReader.read_all_errorlog_entries()
 
@@ -154,12 +154,12 @@ class RfLogService(BaseService):
         對應URI: /redfish/v1/Managers/CDU/LogServices/{log_service_id}/Entries/{entry_id}
         """
         if log_service_id != "1":
-            raise ProjError(HTTPStatus.NOT_FOUND.value, f"/LogService/{log_service_id} is not exist!")
+            raise ProjRedfishError(ProjRedfishErrorCode.RESOURCE_NOT_FOUND, f"/LogService/{log_service_id} is not exist!")
         
         log_entries = WebAppJsonReader.read_all_errorlog_entries()
 
         if int(entry_id) > len(log_entries) or int(entry_id) < 1:
-            raise ProjError(HTTPStatus.NOT_FOUND.value, f"/LogService/{log_service_id}/Entries/{entry_id} is not exist!")
+            raise ProjRedfishError(ProjRedfishErrorCode.RESOURCE_NOT_FOUND, f"/LogService/{log_service_id}/Entries/{entry_id} is not exist!")
 
         signal_record = log_entries[int(entry_id) - 1]
 

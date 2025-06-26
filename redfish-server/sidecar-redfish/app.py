@@ -25,14 +25,14 @@ import load_env
 
 # from argparse import ArgumentParser
 # from dotenv import load_dotenv
-from flask import Flask, request, Response, jsonify
+from flask import Flask, request, Response, jsonify, make_response
 from flask_restx import Api
 import sys, os
 from werkzeug.exceptions import HTTPException
 from http import HTTPStatus
 from mylib.db.extensions import ext_engine
 from mylib.db.db_util import init_orm
-from mylib.common.proj_error import ProjError
+from mylib.common.proj_error import ProjError, ProjRedfishError
 from mylib.auth.rf_auth import check_basic_auth, check_session_auth, AuthStatus
 from mylib.services.debug_service import DebugService
 from mylib.managements.FlaskConfiger import FlaskConfiger
@@ -68,8 +68,11 @@ class MyJSONProvider(DefaultJSONProvider):
 
 app = Flask(__name__)
 
+db_filename_suffix = "-test" if os.getenv("env") == "test" else ""
+db_filename = f"mydb{db_filename_suffix}.sqlite"
+
 # initialize sqlalchemy
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///mydb.sqlite"
+app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_filename}"
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_size": 5,
     "max_overflow": 1,
@@ -247,6 +250,30 @@ def add_link_describedby(response):
         response.headers["OData-Version"] = "4.0"
     return response
 
+@app.after_request
+def remove_message_from_response(response):
+    """
+    @note If there is no `message` in response, Flask-restx will add `message` to response automatically!
+    """
+    try:
+        if response.content_type == 'application/json':
+            """
+            redfish error format:
+            {
+                "error": {
+                    "code": "Base.1.19.0.GeneralError",
+                    "message": "some exception"
+                }
+            }
+            """
+            if response.status_code != HTTPStatus.OK:
+                resp_body = json.loads(response.get_data(as_text=True))
+                if 'error' in resp_body and 'message' in resp_body: 
+                    del resp_body['message']
+                    response.set_data(json.dumps(resp_body))
+    except Exception as e:
+        pass
+    return response
 
 @api.errorhandler(HTTPException)
 def handle_http_exception(e):
@@ -269,8 +296,17 @@ def handle_proj_error(e):
         2) flask-restx will add `message` to response automatically.
     """
     status_code = e.code if e.code < 1000 else HTTPStatus.INTERNAL_SERVER_ERROR.value
-    return {"code": e.code, "message": e.message}, status_code
+    return e.to_redfish_error_dict(), status_code
 
+@api.errorhandler(ProjRedfishError)
+def handle_proj_redfish_error(e):
+    """
+    Catch exception from custom redfish error, ProjRedfishError.
+    @note:
+        1) Not use jsonify() to return ProjRedfishError
+        2) flask-restx will add `message` to response automatically.
+    """
+    return e.to_dict(), e.http_status
 
 @api.errorhandler(Exception)
 def handle_exception(e):

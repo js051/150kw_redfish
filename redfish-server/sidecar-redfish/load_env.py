@@ -24,6 +24,7 @@ else:
     dotenv_path = os.path.join(proj_root, f'.env-{args.env}')  
 print(f"Load env file: {dotenv_path}")  
 load_dotenv(dotenv_path=dotenv_path, verbose=True, override=True)
+os.environ["env"] = args.env
 
 PROJECT_NAME = os.getenv("PROJ_NAME")
 
