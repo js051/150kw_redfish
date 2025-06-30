@@ -73,15 +73,43 @@ prepare_workspace() {
 # Locate and package source files that changed between the two tags
 package_changed_files() {
     echo "Finding changed application files..."
-    local changed_files
-    changed_files=$(git diff --name-only --diff-filter=ACMRT "$OLD_TAG" "$NEW_TAG")
+    
+    local changed_files_list="changed_files.tmp"
+    git diff --name-only --diff-filter=ACMRT "$OLD_TAG" "$NEW_TAG" > "$changed_files_list"
 
-    if [ -z "$changed_files" ]; then
-        echo "No application files changed."
-    else
-        echo "$changed_files" | rsync -a --files-from=- . "$UPDATE_DIR/app/"
-        echo "Application files packaged."
+    if [ ! -s "$changed_files_list" ]; then
+        echo "No application files changed between versions."
+        rm -f "$changed_files_list"
+        return
     fi
+
+    # 準備 rsync 的 --exclude-from 選項
+    local rsync_opts="-a"
+    if [ -f ".distignore" ]; then
+        echo "Applying .distignore rules..."
+        # 使用 --exclude-from 來讀取忽略規則
+        rsync_opts="$rsync_opts --exclude-from=.distignore"
+    else
+        echo "Warning: .distignore file not found. No files will be excluded."
+    fi
+
+    echo "Packaging application files..."
+    # rsync 會從 changed_files.tmp 讀取要複製的檔案列表，
+    # 同時根據 .distignore 的規則進行排除，最後才複製。
+    rsync $rsync_opts --files-from="$changed_files_list" . "$UPDATE_DIR/app/"
+
+    # 檢查打包目錄是否為空，並列出實際打包的檔案
+    if [ -z "$(ls -A "$UPDATE_DIR/app")" ]; then
+      echo "No application files to package after applying exclusions."
+    else
+      echo "Application files packaged successfully."
+      echo "Packaged file list:"
+      # 使用 find 指令遞迴地列出所有被打包的檔案
+      find "$UPDATE_DIR/app" -type f | sed "s#^$UPDATE_DIR/app/##"
+    fi
+
+    # 清理臨時檔案
+    rm -f "$changed_files_list"
 }
 
 # For each module, package only the new or updated Python wheels

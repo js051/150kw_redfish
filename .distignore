@@ -1,0 +1,33 @@
+# --- 打包時需要排除的檔案和目錄 ---
+
+# Git 相關
+.git/
+.gitignore
+.gitattributes
+
+# GitHub Actions 相關
+.github/
+
+# IDE 和編輯器設定
+.vscode/
+.idea/
+
+# 開發和測試相關
+test/
+tests/
+*.pyc
+__pycache__/
+
+# 腳本和臨時檔案
+*.sh
+*.tmp
+
+# 文件
+README.md
+*.md
+
+# 環境變數
+.env*
+
+# 其他不需要發布到生產環境的檔案
+repomix-output.xml
