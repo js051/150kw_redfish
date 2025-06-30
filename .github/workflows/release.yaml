@@ -1,0 +1,197 @@
+# .github/workflows/release.yaml
+#
+# 功能：為 sidecar-redfish 建立「只含改動程式與 .whl」的增量包，
+#       傳送至 192.168.3.137（或覆寫指定主機）。
+# 觸發：
+#   1. main 分支 push
+#   2. Pull Request 合併到 main
+#   3. 手動 workflow_dispatch（支援 dry_run / debug / 指定版本區間）
+# 版本推算規則：
+#   ─ 手動 new_tag 是 tag  → 舊版 = new_tag 的上一個 tag
+#   ─ 手動 new_tag 是 hash → 舊版 = new_tag 之前最近的 tag
+#   ─ 事件自動（或 new_tag 空） → 新版 = HEAD，舊版 = 最近 tag
+#   ─ 手動同時給 previous_tag → 直接用指定區間
+#
+# 需先在 repo 設定：
+#   • Secrets  : REMOTE_SSH_PASSWORD
+#   • Variables: REMOTE_HOST_IP   (預設 192.168.3.137)
+#
+name: Build Incremental Package & Deploy
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "true → 只列印指令，不連線"
+        type: boolean
+        default: false
+      debug:
+        description: "true → set -x 逐行顯示 shell"
+        type: boolean
+        default: false
+      override_host:
+        description: "臨時指定遠端主機 (空=用 vars.REMOTE_HOST_IP)"
+        type: string
+        default: ""
+      new_tag:
+        description: "新版本 (tag 或 commit hash，空=HEAD)"
+        type: string
+        default: ""
+      previous_tag:
+        description: "舊版本 tag (空=自動推算或第一個 commit)"
+        type: string
+        default: ""
+
+jobs:
+  build:
+    if: github.event.pull_request == null || github.event.pull_request.merged == true
+    runs-on: ubuntu-22.04
+
+    steps:
+      # ------------- 0. Basic tools -------------
+      - name: Install sshpass & tree
+        run: sudo apt-get update && sudo apt-get install -y sshpass tree
+
+      # ------------- 1. Fetch full history -------------
+      - name: Checkout repository (full)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ------------- 2. Python (for pip download) -------------
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      # ------------- 3. Shared ENV -------------
+      - name: Define ENV
+        id: envset
+        env:
+          HOST_FROM_VAR: ${{ vars.REMOTE_HOST_IP }} # 可能為空
+          PASS_FROM_SEC: ${{ secrets.REMOTE_SSH_PASSWORD }} # 可能為空
+        run: |
+          # 1) remote_host： → dispatch override → repo variable → 192.168.3.137
+          if [ -n "${{ inputs.override_host }}" ]; then
+            REMOTE_HOST='${{ inputs.override_host }}'
+          elif [ -n "$HOST_FROM_VAR" ]; then
+            REMOTE_HOST="$HOST_FROM_VAR"
+          else
+            REMOTE_HOST="itgsystem3.asuscomm.com"
+          fi
+
+          # 2) ssh_password：Secret → 0000
+          if [ -n "$PASS_FROM_SEC" ]; then
+            SSH_PASSWORD="$PASS_FROM_SEC"
+          else
+            SSH_PASSWORD="0000"
+          fi
+          echo "DRY=${{ inputs.dry_run }}"     >> $GITHUB_ENV
+          echo "DEBUG_FLG=${{ inputs.debug }}" >> $GITHUB_ENV
+          echo "REMOTE_HOST=$REMOTE_HOST"      >> $GITHUB_ENV
+          echo "SSH_PASSWORD=$SSH_PASSWORD"    >> $GITHUB_ENV
+          echo "REMOTE_USER=user"              >> $GITHUB_ENV
+          echo "REMOTE_DIR=/home/user/tmp/users/jason" >> $GITHUB_ENV
+
+      # ------------- 4. Enable set -x for all subsequent steps when debug=true -------------
+      - name: Enable shell trace
+        if: env.DEBUG_FLG == 'true'
+        run: |
+          : "${BASH_ENV:=$HOME/.bash_env}"
+          mkdir -p "$(dirname "$BASH_ENV")"
+          echo 'set -x' >> "$BASH_ENV"
+
+      # ------------- 5. Determine version range (handles no-tag edge cases) -------------
+      - id: ver
+        name: Select version range
+        run: |
+          set -e
+
+          IN_NEW="${{ inputs.new_tag }}"
+          IN_OLD="${{ inputs.previous_tag }}"
+
+          # -------- Determine NEW_TAG --------
+          if [ -n "$IN_NEW" ]; then
+            NEW="$IN_NEW"
+          else
+            NEW="HEAD"
+          fi
+
+          # -------- Determine OLD_TAG --------
+          if [ -n "$IN_OLD" ]; then
+            OLD="$IN_OLD"
+          else
+            # Try to get the latest tag before NEW_TAG
+            LATEST_TAG=$(git describe --tags --abbrev=0 "$NEW" 2>/dev/null || true)
+
+            if [ -n "$LATEST_TAG" ]; then
+              if git describe --exact-match --tags "$NEW" >/dev/null 2>&1; then
+                OLD=$(git describe --tags --abbrev=0 "${NEW}^")
+              else
+                OLD="$LATEST_TAG"
+              fi
+            else
+              # Repository has no tags: use the first commit
+              echo "Repository has no tag; packaging from first commit"
+              OLD=$(git rev-list --max-parents=0 HEAD)
+            fi
+          fi
+
+          if [ -z "$OLD" ]; then
+            echo "Unable to determine old version (OLD_TAG)"; exit 1
+          fi
+
+          echo "old_tag=$OLD" >> "$GITHUB_OUTPUT"
+          echo "new_tag=$NEW" >> "$GITHUB_OUTPUT"
+
+          echo "---------------------------------------------"
+          echo "Incremental range: $OLD  →  $NEW"
+          echo "---------------------------------------------"
+
+      # ------------- 6. Build incremental package (on runner) -------------
+      - id: pkg
+        name: Build incremental package
+        run: |
+          # Assuming your script is in the repo root; modify the path if not
+          SCRIPT_PATH="./create_update_package.sh"
+
+          if [ ! -f "$SCRIPT_PATH" ]; then
+            SCRIPT_PATH=$(find . -type f -name 'create_update_package.sh' -print -quit)
+          fi
+
+          chmod +x "$SCRIPT_PATH"
+          "$SCRIPT_PATH" "${{ steps.ver.outputs.old_tag }}" "${{ steps.ver.outputs.new_tag }}"
+
+          OLD_TAG_SAFE=$(echo "${{ steps.ver.outputs.old_tag }}" | sed 's/\//-/g')
+          NEW_TAG_SAFE=$(echo "${{ steps.ver.outputs.new_tag }}" | sed 's/\//-/g')
+
+          # The packaging script already generates the correct filename; locate it with ls
+          PKG_NAME=$(ls ITG_Update_*.tar.gz)
+
+          echo "pkg_name=$PKG_NAME" >> $GITHUB_OUTPUT
+          echo "Generated file: $PKG_NAME"
+          ls -lh "$PKG_NAME"
+
+      # ------------- 7. Upload to remote (skipped when dry-run) -------------
+      - name: Upload package to remote
+        if: env.DRY != 'true'
+        env:
+          SSH_PASSWORD: ${{ env.SSH_PASSWORD }}
+        run: |
+          PKG=${{ steps.pkg.outputs.pkg_name }}
+          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            $REMOTE_USER@$REMOTE_HOST "mkdir -p $REMOTE_DIR"
+          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            "$PKG" $REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/
+
+      # ------------- 8. Save to GitHub Artifact -------------
+      - name: Upload artifact
+        if: env.DRY != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.pkg.outputs.pkg_name }}
+          path: ${{ steps.pkg.outputs.pkg_name }}
+          retention-days: 7
