@@ -71,45 +71,53 @@ prepare_workspace() {
 }
 
 # Locate and package source files that changed between the two tags
+# Locate and package source files that changed between the two tags
 package_changed_files() {
     echo "Finding changed application files..."
     
-    local changed_files_list="changed_files.tmp"
-    git diff --name-only --diff-filter=ACMRT "$OLD_TAG" "$NEW_TAG" > "$changed_files_list"
+    local all_changed_files="all_changed_files.tmp"
+    local final_files_to_package="final_files_to_package.tmp"
 
-    if [ ! -s "$changed_files_list" ]; then
+    # Step 1: Get the list of all changed files from Git.
+    git diff --name-only --diff-filter=ACMRT "$OLD_TAG" "$NEW_TAG" > "$all_changed_files"
+
+    if [ ! -s "$all_changed_files" ]; then
         echo "No application files changed between versions."
-        rm -f "$changed_files_list"
+        rm -f "$all_changed_files"
         return
     fi
 
-    # 準備 rsync 的 --exclude-from 選項
-    local rsync_opts="-a"
+    # Step 2: Filter the list of changed files using .distignore
     if [ -f ".distignore" ]; then
         echo "Applying .distignore rules..."
-        # 使用 --exclude-from 來讀取忽略規則
-        rsync_opts="$rsync_opts --exclude-from=.distignore"
+        # Create a temporary pattern file, removing comments and blank lines
+        local patterns_file="patterns.tmp"
+        grep -v '^#\|^$' .distignore > "$patterns_file"
+
+        # Use grep to filter out ignored files.
+        # -v: invert match (select non-matching lines)
+        # -f: get patterns from file
+        grep -v -f "$patterns_file" "$all_changed_files" > "$final_files_to_package"
+        rm -f "$patterns_file"
     else
         echo "Warning: .distignore file not found. No files will be excluded."
+        cp "$all_changed_files" "$final_files_to_package"
     fi
 
-    echo "Packaging application files..."
-    # rsync 會從 changed_files.tmp 讀取要複製的檔案列表，
-    # 同時根據 .distignore 的規則進行排除，最後才複製。
-    rsync $rsync_opts --files-from="$changed_files_list" . "$UPDATE_DIR/app/"
-
-    # 檢查打包目錄是否為空，並列出實際打包的檔案
-    if [ -z "$(ls -A "$UPDATE_DIR/app")" ]; then
-      echo "No application files to package after applying exclusions."
+    # Step 3: Package the final list of files using rsync.
+    if [ ! -s "$final_files_to_package" ]; then
+        echo "No application files to package after applying exclusions."
     else
-      echo "Application files packaged successfully."
-      echo "Packaged file list:"
-      # 使用 find 指令遞迴地列出所有被打包的檔案
-      find "$UPDATE_DIR/app" -type f | sed "s#^$UPDATE_DIR/app/##"
+        echo "Packaging application files..."
+        rsync -a --files-from="$final_files_to_package" . "$UPDATE_DIR/app/"
+        echo "Application files packaged successfully."
+        echo "Packaged file list:"
+        # List the files that were actually packaged
+        find "$UPDATE_DIR/app" -type f | sed "s#^$UPDATE_DIR/app/##"
     fi
-
-    # 清理臨時檔案
-    rm -f "$changed_files_list"
+    
+    # Step 4: Clean up all temporary files.
+    rm -f "$all_changed_files" "$final_files_to_package"
 }
 
 # For each module, package only the new or updated Python wheels
