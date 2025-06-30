@@ -1,10 +1,38 @@
 import os
-from flask import current_app, request, jsonify, make_response, send_file, Response
+from flask import current_app, request, jsonify, make_response, send_file, Response, abort
 from flask_restx import Namespace, Resource, fields
 
 from mylib.services.rf_event_service import RfEventService
+from mylib.common.my_resource import MyResource
+from mylib.common.proj_error import ProjRedfishError, ProjRedfishErrorCode
+from http import HTTPStatus
 
 EventService_ns = Namespace('', description='EventService Collection')
+
+# =============================================
+# 驗證器
+# =============================================
+class MyBaseEventService(MyResource):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.Subscriptions_id_count = 1
+    
+    def _validate_request(self):
+        try:
+            Subscriptions_id = request.view_args.get("Subscriptions_id")
+            
+            if not self._is_valid_id(Subscriptions_id, self.Subscriptions_id_count):
+                abort(HTTPStatus.NOT_FOUND, description=f"Subscriptions_id, {Subscriptions_id}, not found")
+        except Exception as e:
+            abort(HTTPStatus.NOT_FOUND, description=f"[Unexpected Error] {e}")
+    
+    def _is_valid_id(self, id: str, max_value: int):
+        if id: # request有傳id進來才檢查
+            if not id.isdigit():
+                return False
+            if not (0 < int(id) <= max_value):
+                return False
+        return True
 # =============================================
 # patch/post model
 # =============================================
@@ -111,7 +139,7 @@ class Subscriptions(Resource):
 
     
 @EventService_ns.route("/EventService/Subscriptions/<string:Subscriptions_id>")
-class Subscriptions(Resource):
+class Subscriptions(MyBaseEventService):
     # get/delete/patch
     def get(self, Subscriptions_id):
         # return Subscriptions_id_data        

@@ -7,6 +7,7 @@ LogServices:
     Name: "Error Log"
     Description: "Error log from webUI/json/signal_records.json"
     RedfishLogEntryType: "OEM"
+    Enabled: true
 TimeZoneName:
   "+00:00": UTC
   "+01:00": Europe/Paris

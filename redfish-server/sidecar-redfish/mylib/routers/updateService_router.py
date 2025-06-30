@@ -100,7 +100,7 @@ class FirmwareInventoryControlUnit_1(Resource):
             # "ReleaseDate": "2025-02-21T06:02:08Z", # TBD
             # 是否可更新
             "Updateable": False,    
-            "Version": "0" +str(load_raw_from_api(f"{CDU_BASE}/api/v1/cdu/components/display/version")["version"]["PLC"]),
+            "Version": "0" + str(load_raw_from_api(f"{CDU_BASE}/api/v1/cdu/components/display/version")["version"]["PLC"]),
             "SoftwareId": "PLC-VERSION",
             "Oem": {}
         }
@@ -135,7 +135,7 @@ upload_parser.add_argument(
     required=True,
     help='Firmware zip file'
 )
-AllowableValues = {"http","https"}
+AllowableValues = {"HTTP","HTTPS"}
 @update_ns.route("/UpdateService/Actions/UpdateService.SimpleUpdate")
 class ActionsUpdateCduSimpleUpdate(Resource):
     @update_ns.expect(upload_parser) 
@@ -148,8 +148,8 @@ class ActionsUpdateCduSimpleUpdate(Resource):
             try:
                 data = request.get_json()
                 image_uri = data.get("ImageURI")
-                proto = data.get("TransferProtocol") or ""
-                proto = proto.lower()
+                proto = data.get("TransferProtocol")
+                
                 # 若 client 指定了 TransferProtocol，要檢查是否合法
                 if proto and proto not in AllowableValues:
                     # return {"error": f"TransferProtocol must be one of {list(AllowableValues)}"}, 400

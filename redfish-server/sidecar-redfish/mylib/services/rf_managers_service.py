@@ -131,14 +131,18 @@ class RfManagersService(BaseService):
     def net_info(self, interfaces): # 測試暫放
         print(f"共 {len(interfaces)} 張實體網卡：")
         for iface in interfaces:
-            print(f"\n名稱: {iface['Name']}")
-            print(f"  MAC            : {iface['MAC']}")
-            print(f"  IPv4           : {iface['IPv4']}")
-            print(f"  IPv6           : {iface['IPv6']}")
-            print(f"  Speed (Mbps)   : {iface['Speed_Mbps']}")
-            print(f"  MTU            : {iface['MTU']}")
-            print(f"  Full Duplex    : {iface['FullDuplex']}")
-            print(f"  Is Up          : {iface['isUp']}")
+            print(f"- {iface['Name']}:")
+            print(f"    MAC           : {iface['MAC']}")
+            print(f"    IPv4          : {iface['IPv4']}")
+            print(f"    SubnetMask    : {iface['SubnetMask']}")
+            print(f"    AddressOrigin : {iface['AddressOrigin']}")
+            print(f"    Gateway       : {iface['Gateway']}")
+            print(f"    NameServers   : {iface['NameServers']}")
+            print(f"    IPv6          : {iface['IPv6']}")
+            print(f"    Speed (Mbps)  : {iface['Speed_Mbps']}")
+            print(f"    MTU           : {iface['MTU']}")
+            print(f"    Duplex        : {iface['FullDuplex']}")
+            print(f"    IsUp          : {iface['isUp']}")
             
     # ================Managers/cdu================  
     def get_managers(self, cdu_id):
@@ -306,7 +310,7 @@ class RfManagersService(BaseService):
         m.NameServers = data["NameServers"]#["8.8.8.8" ]#TBD
         
         status = {
-            "State": "Enabled",
+            "State": "Enabled" if data["isUp"] else "Disabled",
             "Health": "OK"
         }
         m.Status = RfStatusModel.from_dict(status)

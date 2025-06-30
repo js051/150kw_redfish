@@ -11,11 +11,12 @@ from unittest.mock import MagicMock, patch
 from http import HTTPStatus
 from mylib.models.rf_resource_model import RfResetType
 from mylib.models.rf_manager_model import RfResetToDefaultsType
+from mylib.services.rf_managers_service import RfManagersService
 from flask import Response
 
 
 
-managers_testcases = [
+managers_cdu_testcases = [
     {
         "endpoint": f'/redfish/v1/Managers/CDU',
         "assert_cases": {
@@ -34,6 +35,19 @@ managers_testcases = [
         }
     } 
 ]
+
+managers_timezone_patch_testcase = {
+    "endpoint": "/redfish/v1/Managers/CDU",
+    "payload": {
+        "DateTime": "2025-06-25T09:22:00Z+08:00",
+        "DateTimeLocalOffset": "-05:00",
+        "ServiceIdentification": "Supermicro"
+    },
+    "expected": {
+        "TimeZoneName": "America/New_York"
+    },
+    "description": "直接設定 TimeZoneName 為 America/New_York，並驗證是否正確更新"
+}
 
 # WATCH OUT the `ITG_WEBAPP_JSON_ROOT` in .env-test file for MacOS!
 managers_cdu_log_services_testcases = [
@@ -240,14 +254,11 @@ def test_manager_cdu_shutdown(client, basic_auth_header, testcase):
 # NNNNNNNN         NNNNNNN   ooooooooooo    rrrrrrr            mmmmmm   mmmmmm   mmmmmm  aaaaaaaaaa  aaaallllllll
 ##
 
-managers_testcases += managers_cdu_log_services_testcases
-
-@pytest.mark.parametrize("testcase", managers_testcases)
-def test_manager_normal_api(client, basic_auth_header, testcase):
+def _common_manager_normal_api(client, basic_auth_header, testcase):
     """[TestCase] manager API"""
     # 獲取當前測試案例的序號
-    index = managers_testcases.index(testcase) + 1
-    print(f"Running test case {index}/{len(managers_testcases)}: {testcase}")
+    # index = managers_testcases.index(testcase) + 1
+    # print(f"Running test case {index}/{len(managers_testcases)}: {testcase}")
 
     print(f"Endpoint: {testcase['endpoint']}")
     response = client.get(testcase['endpoint'], headers=basic_auth_header)
@@ -275,3 +286,74 @@ def test_manager_normal_api(client, basic_auth_header, testcase):
         except AssertionError as e:
             print(f"FAIL: AssertionError: {e}, key: {key}, value: {value}")
             raise e
+
+
+@pytest.mark.parametrize("testcase", managers_cdu_testcases)
+def test_manager_cdu_testcases(client, basic_auth_header, testcase):
+    """[TestCase] manager CDU"""
+    _common_manager_normal_api(client, basic_auth_header, testcase)
+
+@pytest.mark.parametrize("testcase", managers_cdu_log_services_testcases)
+def test_manager_cdu_log_services(client, basic_auth_header, testcase):
+    """[TestCase] manager CDU log services"""
+    _common_manager_normal_api(client, basic_auth_header, testcase)
+        
+##                                                                                                       
+# PPPPPPPPPPPPPPPPP        AAA         TTTTTTTTTTTTTTTTTTTTTTT       CCCCCCCCCCCCCHHHHHHHHH     HHHHHHHHH
+# P::::::::::::::::P      A:::A        T:::::::::::::::::::::T    CCC::::::::::::CH:::::::H     H:::::::H
+# P::::::PPPPPP:::::P    A:::::A       T:::::::::::::::::::::T  CC:::::::::::::::CH:::::::H     H:::::::H
+# PP:::::P     P:::::P  A:::::::A      T:::::TT:::::::TT:::::T C:::::CCCCCCCC::::CHH::::::H     H::::::HH
+#   P::::P     P:::::P A:::::::::A     TTTTTT  T:::::T  TTTTTTC:::::C       CCCCCC  H:::::H     H:::::H  
+#   P::::P     P:::::PA:::::A:::::A            T:::::T       C:::::C                H:::::H     H:::::H  
+#   P::::PPPPPP:::::PA:::::A A:::::A           T:::::T       C:::::C                H::::::HHHHH::::::H  
+#   P:::::::::::::PPA:::::A   A:::::A          T:::::T       C:::::C                H:::::::::::::::::H  
+#   P::::PPPPPPPPP A:::::A     A:::::A         T:::::T       C:::::C                H:::::::::::::::::H  
+#   P::::P        A:::::AAAAAAAAA:::::A        T:::::T       C:::::C                H::::::HHHHH::::::H  
+#   P::::P       A:::::::::::::::::::::A       T:::::T       C:::::C                H:::::H     H:::::H  
+#   P::::P      A:::::AAAAAAAAAAAAA:::::A      T:::::T        C:::::C       CCCCCC  H:::::H     H:::::H  
+# PP::::::PP   A:::::A             A:::::A   TT:::::::TT       C:::::CCCCCCCC::::CHH::::::H     H::::::HH
+# P::::::::P  A:::::A               A:::::A  T:::::::::T        CC:::::::::::::::CH:::::::H     H:::::::H
+# P::::::::P A:::::A                 A:::::A T:::::::::T          CCC::::::::::::CH:::::::H     H:::::::H
+# PPPPPPPPPPAAAAAAA                   AAAAAAATTTTTTTTTTT             CCCCCCCCCCCCCHHHHHHHHH     HHHHHHHHH
+#
+
+@pytest.mark.parametrize("testcase", [managers_timezone_patch_testcase])
+def test_patch_timezone_api(client, basic_auth_header, testcase):
+    endpoint = testcase["endpoint"]
+    payload = testcase["payload"]
+    expected = testcase["expected"]
+
+    #取得原時區
+    get_resp_before = client.get(endpoint, headers=basic_auth_header)
+    assert get_resp_before.status_code == 200
+    original_timezone = get_resp_before.json.get("TimeZoneName")
+    original_offset = get_resp_before.json.get("DateTimeLocalOffset")
+    print("取得原時區: {original_timezone} (offset: {original_offset})")
+    
+    #PATCH
+    print(f"PATCH {endpoint} with: {payload}")
+    patch_resp = client.patch(endpoint, headers=basic_auth_header, json=payload)
+    assert patch_resp.status_code == 200, f"PATCH failed with HTTP {patch_resp.status_code}"
+    print("PATCH success")
+
+    #GET
+    get_resp = client.get(endpoint, headers=basic_auth_header)
+    assert get_resp.status_code == 200
+    resp_json = get_resp.json
+    print("GET content:", json.dumps(resp_json, indent=2, ensure_ascii=False))
+
+    #驗證
+    assert resp_json["TimeZoneName"] == expected["TimeZoneName"], \
+        f"TimeZoneName expected  {expected['TimeZoneName']}，but got {resp_json['TimeZoneName']}"
+    print("TimeZoneName pass")
+    
+    #還原
+    print(f"還原時區為: {original_timezone}")
+    restore_payload = {
+        "TimeZoneName": original_timezone,
+        "DateTimeLocalOffset": original_offset,
+        "ServiceIdentification": "Supermicro"
+    }
+    restore_resp = client.patch(endpoint, headers=basic_auth_header, json=restore_payload)
+    assert restore_resp.status_code == 200, f"Restore failed with HTTP {restore_resp.status_code}"
+    print("Restore success")

@@ -7769,19 +7769,7 @@ class LogMover:
 
 @app.route("/restore_factory_setting_all", methods=["POST"])
 def restoreFactorySettingAll():
-    ###1. SystemSetting: Close Water Valve When Stop Mode 要勾選
-    # try:
-    #     with ModbusTcpClient(
-    #         host=modbus_host, port=modbus_port, unit=modbus_slave_id
-    #     ) as client:
-    #         client.write_coils((8192 + 515), [True])
-    #         ctr_data["stop_valve_close"] = True
-    # except Exception as e:
-    #     print(f"close valve error:{e}")
-    #     # return retry_modbus((8192 + 515), [True], "coil")
-
-    
-    ###2. SystemSetting: Log Interval(sec) : 2
+    ###1. SystemSetting: Log Interval(sec) : 2
     try:
         with ModbusTcpClient(
             host=modbus_host, port=modbus_port, unit=modbus_slave_id
@@ -7794,7 +7782,7 @@ def restoreFactorySettingAll():
         print(f"error:{e}")
         # return retry_modbus(3000, 2, "register")
     
-    ###3.Control: Pump & Filter Running Time: Reset
+    ###2.Control: Pump & Filter Running Time: Reset
     try:
         with ModbusTcpClient(
             host=modbus_host, port=modbus_port, unit=modbus_slave_id
@@ -7857,7 +7845,7 @@ def restoreFactorySettingAll():
         print(f"Filter and Fan reset error:{e}")
         op_logger.info("reset Filter and Fan Running Time failed!")
 
-    ###4. Error Table: 隱藏或刪除所有已經回復的Message(superuser保留)
+    ###3. Error Table: 隱藏或刪除所有已經回復的Message(superuser保留)
     try:
         global signal_records
         if signal_records:
@@ -7866,7 +7854,7 @@ def restoreFactorySettingAll():
         # return jsonify({"status": "success", "message": "All records deleted successfully."})
         else:
             # return jsonify({"status": "fail", "message": "No records to delete."})
-            print(f"No records to delete.")
+            print("No records to delete.")
     except Exception as e:
         print(f"Error deleting records: {e}")
     
@@ -7878,26 +7866,12 @@ def restoreFactorySettingAll():
             # return jsonify({"status": "success", "message": "All records deleted successfully."})
         else:
             # return jsonify({"status": "fail", "message": "No records to delete."})
-            print(f"No records to delete.")
+            print("No records to delete.")
 
     except Exception as e:
         print(f"Error deleting downtime records: {e}")    
-    ###5. Inspection: Set Inspection Time(sec) *EV:30 *PV1:30 *Pump Speed:25
-    # inspect_data = [30,30,25]
-    # try:
-    #     with ModbusTcpClient(
-    #         host=modbus_host, port=modbus_port, unit=modbus_slave_id
-    #     ) as client:
-    #         client.write_registers(740, inspect_data)
 
-    # except Exception as e:
-    #     print(f"inspection time error:{e}")
-    #     # return retry_modbus(740, inspect_data, "register")
-    # op_logger.info("Inspection Time Updated Successfully")
-    # return "Inspection Time Updated Successfully"
-    
-    
-    ###6. Logs:軟刪除所有Log檔: 將其轉至old_xxx 資料夾(superuser可見)
+    ###4. Logs:軟刪除所有Log檔: 將其轉至old_xxx 資料夾(superuser可見)
     
 
     LogMover(
@@ -8029,8 +8003,14 @@ def restoreFactorySettingAll():
     #         print("operation log directory does not exist.")
     # except Exception as e:
     #     print(f"Move log operation: {e}")
-         
-    ###8. Engineer Mode: Alert Threshold Setting恢復預設值
+    
+    ###5. Engineer Mode: Sensor Adjustment Setting恢復預設值
+    try:
+        adjust_import(adjust_factory)
+    except Exception as e:
+        print(f"sensor adjust import error:{e}")
+        
+    ###6. Engineer Mode: Alert Threshold Setting恢復預設值
     try:
         if system_data["value"]["unit"] == "metric":
             threshold_import(thrshd_factory)
@@ -8057,55 +8037,48 @@ def restoreFactorySettingAll():
     except Exception as e:  
         print(f"threshold import error:{e}")
     
-    ###9. Engineer Mode: PID Setting恢復預設值
-    # try:
-    #     pid_import(pid_factory)
-    #     op_logger.info("Reset PID to Factory Setting Successfully")
-    # except Exception as e:  
-    #     print(f"pid import error:{e}")      
-    # ###10. Engineer Mode: *Minimum Opening:30 
-    # try:
-    #     pv_min_import(pv_min_factory)
-    #     op_logger.info("Reset Min Opening to Factory Setting Successfully")
-    # except Exception as e:      
-    #     print(f"pv_min import error:{e}")
-    
-    ###11. auto mode redundant sensor broken setting 
-    #       *PV1 when Temp Sensor Broken:80 
-    #       *Pump Speed when Pressure Sensor Broken:50 
-    #       *PV1 Minimum Opening when DP Error or selecting Close Eater Valve when Stop Mode:34 
-    # try:
-    #     auto_import(auto_factory)
-    #     op_logger.info("Reset Auto to Factory Setting Successfully")
-    # except Exception as e:      
-    #     print(f"auto import error:{e}")
+    ###7. Engineer Mode: PID Setting恢復預設值
+    try:
+        pid_import(pid_factory)
+        op_logger.info("Reset PID to Factory Setting Successfully")
+    except Exception as e:  
+        print(f"pid import error:{e}")      
         
-    ###12. *Ta Threshold:40 *T1 Threshold:35 
-    # try:
-    #     if system_data["value"]["unit"] == "metric":
-    #         valve_import(valve_factory)
-    #     else:
-    #         imperial_valve_factory["coolant"] = round(
-    #             (valve_factory["coolant"]) * 9.0 / 5.0 + 32.0
-    #         )
-    #         # imperial_valve_factory["ambient"] = round(
-    #         #     (valve_factory["ambient"]) * 9.0 / 5.0 + 32.0
-    #         # )
-    #         valve_import(imperial_valve_factory)
-    #     op_logger.info("Reset Valve to Factory Setting Successfully")
-    # except Exception as e:  
-    #     print(f"valve import error:{e}")
-        
-    ###13. *Ststua Indicator Delay:3000010
+    ###8. *Ststua Indicator Delay:3000010
     try:
         with open(f"{web_path}/json/timeout_light.json", "w") as file:
             json.dump({"timeoutLight": "30000"}, file)
         op_logger.info(
-            f"Update indicator delay successfully. Indicator delay:30000"
+            "Update indicator delay successfully. Indicator delay:30000"
         )
     except Exception as e:  
-        print(f"timeout light error:{e}")   
-    ###14 reset pump swap time
+        print(f"timeout light error:{e}") 
+        
+    ###9. Engineer Mode: Auto Mode Redundant Sensor Broken Setting
+    try:
+        auto_import(auto_factory)
+    except Exception as e:
+        print(f"Auto Mode Redundant Sensor Broken Setting import error:{e}")
+    
+    ###10. Engineer Mode: When Dew Point Error in Auto Mode Setting
+    try:
+        dpt_error_import(dpt_error_factory)
+    except Exception as e:
+        print(f"Dew Point Error Setting to Factory Setting import error:{e}")
+    
+    ###11. Engineer Mode: Fan Speed in Auto Mode Setting
+    try:
+        auto_mode_import(auto_mode_setting_factory)
+    except Exception as e:
+        print(f"Fan Speed in Auto Mode Setting import error:{e}")
+    
+    ###12. Engineer Mode: Rack Opening Setting
+    try:
+        rack_opening_import(rack_opening_setting["factor_value"])
+    except Exception as e:
+        print(f"Rack Opening Setting import error:{e}")
+        
+    ###13 Control page : reset pump swap time
     try:
         word1, word2 = cvt_float_byte(24)
         with ModbusTcpClient(
@@ -8115,8 +8088,7 @@ def restoreFactorySettingAll():
     except Exception as e:
         print(f"set pump swap time error:{e}")
         
-        
-    ### 15 reset auto mode temperature and pressure 
+    ### 14 Control page : reset auto mode temperature and pressure
     try:
         with ModbusTcpClient(
             host=modbus_host, port=modbus_port, unit=modbus_slave_id
@@ -8124,7 +8096,7 @@ def restoreFactorySettingAll():
             temp1, temp2 = cvt_float_byte(35) ## 預設值35度C
             prsr1, prsr2 = cvt_float_byte(30) ## 預設值30psi
             
-             # Reset Auto Mode Temperature
+            # Reset Auto Mode Temperature
             client.write_registers(226, [temp2, temp1])
             client.write_registers(993, [temp2, temp1])
             
@@ -8135,7 +8107,7 @@ def restoreFactorySettingAll():
     except Exception as e:
         print(f"reset auto mode temperature and pressure error:{e}")    
     
-    ### 16 reset manual mode pump speed and fan speed
+    ### 15 Control page : reset manual mode pump speed and fan speed
     
     try:
         with ModbusTcpClient(
