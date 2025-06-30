@@ -71,7 +71,6 @@ prepare_workspace() {
 }
 
 # Locate and package source files that changed between the two tags
-# Locate and package source files that changed between the two tags
 package_changed_files() {
     echo "Finding changed application files..."
     
