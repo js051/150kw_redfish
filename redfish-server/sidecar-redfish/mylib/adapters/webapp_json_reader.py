@@ -5,7 +5,7 @@ from typing import List, Optional
 from http import HTTPStatus
 from flask import abort
 from cachetools import cached, TTLCache
-from mylib.common.proj_error import ProjError
+from mylib.common.proj_error import ProjError, ProjRedfishError, ProjRedfishErrorCode
 from mylib.utils.FileUtil import FileUtil
 from pydantic import BaseModel, Field
 
@@ -26,14 +26,16 @@ class WebAppJsonReader:
     def _error_log_path(cls) -> str:
         json_root = os.getenv('ITG_WEBAPP_JSON_ROOT')
         if json_root is None:
-            raise ProjError(HTTPStatus.BAD_REQUEST.value, "`ITG_WEBAPP_JSON_ROOT` should be defined in .env file")
+            # raise ProjError(HTTPStatus.BAD_REQUEST.value, "`ITG_WEBAPP_JSON_ROOT` should be defined in .env file")
+            raise ProjRedfishError(ProjRedfishErrorCode.RESOURCE_NOT_FOUND, "`ITG_WEBAPP_JSON_ROOT` should be defined in .env file")
         
         json_filepath = os.path.join(json_root, "signal_records.json")
 
         if FileUtil.exists(json_filepath) and FileUtil.is_file(json_filepath):
             return json_filepath
         else:
-            raise ProjError(HTTPStatus.NOT_FOUND.value, f"{json_filepath} is not exist!")
+            # raise ProjError(HTTPStatus.NOT_FOUND.value, f"{json_filepath} is not exist!")
+            raise ProjRedfishError(ProjRedfishErrorCode.RESOURCE_NOT_FOUND, f"{json_filepath} is not exist!")
 
     @classmethod
     @cached(cache=TTLCache(maxsize=1, ttl=10))

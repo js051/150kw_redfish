@@ -7,7 +7,7 @@ from collections import deque, defaultdict
 from datetime import datetime, timezone, timedelta
 from cachetools import cached, TTLCache
 from http import HTTPStatus
-from mylib.common.proj_error import ProjError
+from mylib.common.proj_error import ProjRedfishError, ProjRedfishErrorCode
 from mylib.services.base_service import BaseService
 from mylib.adapters.sensor_csv_adapter import SensorCsvAdapter
 from mylib.models.sensor_log_model import SensorLogModel
@@ -15,6 +15,9 @@ from mylib.models.rf_metric_definition_model import RfMetricDefinitionCollection
 from mylib.models.rf_metric_report_definition_model import (
     RfMetricReportDefinitionCollectionModel,
     RfMetricReportDefinitionModel,
+    RfReportActionsEnum,
+    RfMetric,
+    RfMetricReportDefinitionType
 )
 
 
@@ -201,7 +204,7 @@ class RfTelemetryService(BaseService):
         else:
             metric = metric_dicts.get(metric_definition_id, None)
             if metric == None:
-                raise ProjError(HTTPStatus.NOT_FOUND, f"MetricDefinition, {metric_definition_id}, not found")
+                raise ProjRedfishError(ProjRedfishErrorCode.RESOURCE_NOT_FOUND, f"MetricDefinition, {metric_definition_id}, not found")
 
             m = RfMetricDefinitionModel()
             m.Id = metric['FieldName']
@@ -238,29 +241,38 @@ class RfTelemetryService(BaseService):
             return m.to_dict()
         else:
             if metric_report_definition_id != "1":
-                raise ProjError(HTTPStatus.NOT_FOUND, f"MetricReportDefinition, {metric_report_definition_id}, not found")
+                raise ProjRedfishError(ProjRedfishErrorCode.RESOURCE_NOT_FOUND, f"MetricReportDefinition, {metric_report_definition_id}, not found")
             
             m = RfMetricReportDefinitionModel()
             m.Metrics = []
             
             for metric in metrics:
-                m.Metrics.append(
-                    {
-                        "@odata.id": f"/redfish/v1/TelemetryService/MetricDefinitions/{metric['FieldName']}"
-                    }
-                )
+                ## Warning: PydanticSerializationUnexpectedValue(Expected `RfMetric` - serialized value may not be as expected [input_value={'@odata.id': '/redfish/v...MetricDefinitions/time'}, input_type=dict])
+                # m.Metrics.append(
+                #     {
+                #         "@odata.id": f"/redfish/v1/TelemetryService/MetricDefinitions/{metric['FieldName']}"
+                #     }
+                # )
+
+                metric_model = RfMetric()
+                metric_model.MetricId = metric['FieldName']
+                metric_model.Oem = {
+                    "@odata.id": f"/redfish/v1/TelemetryService/MetricDefinitions/{metric['FieldName']}",
+                    # "Units": metric['Units']
+                }
+                m.Metrics.append(metric_model)
             
             m.odata_context = "/redfish/v1/$metadata#MetricReportDefinition.MetricReportDefinition"
             m.odata_id = "/redfish/v1/TelemetryService/MetricReportDefinitions/1"
             m.odata_type = "#MetricReportDefinition.v1_0_0.MetricReportDefinition"
             m.Id = "1" # metric_report_definition_id
             m.Name = "Periodic Reort" 
-            m.MetricReportDefinitionType = "Periodic"
+            m.MetricReportDefinitionType = RfMetricReportDefinitionType.Periodic
             m.Schedule = {
                 "RecurrenceInterval": "PT3M"  # ISO 8601 duration format for 3 minutes
             }
             m.ReportActions = [
-                "LogToMetricReportsCollection"
+                RfReportActionsEnum.LogToMetricReportsCollection
             ]
             
             return m.to_dict()

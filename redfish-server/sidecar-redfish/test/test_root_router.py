@@ -25,6 +25,15 @@ def test_redfish_v1_root(client):
     assert resp_json["RedfishVersion"] == "1.14.0"
     assert resp_json["Id"] == "RootService"
 
+def test_redfish_v1_odata(client):
+    """[TestCase] /redfish/v1/odata """
+    response = client.get('/redfish/v1/odata')
+    resp_json = response.json
+    print(f"response.json: {resp_json}") # should use `pytest -s`, or run with `pytest -v --html=report.html`
+    assert response.status_code == 200
+    assert resp_json["@odata.context"] == "/redfish/v1/$metadata"
+
+
 def test_redfish_v1_metadata(client):
     """[TestCase] /redfish/v1/$metadata """
     response = client.get('/redfish/v1/$metadata')

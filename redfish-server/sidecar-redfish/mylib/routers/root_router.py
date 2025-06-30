@@ -1,6 +1,7 @@
 import os
 from flask import current_app, request, jsonify, make_response, send_file, Response
 from flask_restx import Namespace, Resource
+from mylib.common.proj_error import ProjRedfishError, ProjRedfishErrorCode
 from mylib.utils.load_api import load_raw_from_api, CDU_BASE
 from mylib.utils.system_info import get_system_uuid
 
@@ -99,7 +100,8 @@ class metadata(Resource):
     def get(self):
         xml_path = os.path.join(current_app.root_path, 'metadata.xml')
         if not os.path.exists(xml_path):
-            return {"error": "metadata.xml not found"}, 500
+            # return {"error": "metadata.xml not found"}, 500
+            raise ProjRedfishError(ProjRedfishErrorCode.RESOURCE_NOT_FOUND, "metadata.xml not found")
         # 用 send_file 直接回 XML
         return send_file(xml_path, mimetype='application/xml; charset=utf-8')
     

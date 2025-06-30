@@ -165,7 +165,7 @@ def init_orm(app, db):
 
 
 
-def reset_to_default():
+def reset_to_defaults():
     try:    
         print(f"Reset to default starting ...")
         

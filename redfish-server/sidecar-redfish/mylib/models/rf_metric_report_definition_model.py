@@ -45,11 +45,11 @@ class RfMetricReportDefinitionType(str, Enum):
     Onchange = "OnChange"
     OnRequest = "OnRequest"
 
-class RfReportActions(str, Enum):
+class RfReportActionsEnum(str, Enum):
     LogToMetricReportsCollection = "LogToMetricReportsCollection"
     RedfishEvent = "RedfishEvent"
 
-class RfReportUpdates(str, Enum):
+class RfReportUpdatesEnum(str, Enum):
     Overwrite = "Overwrite"
     AppendWrapsWhenFull = "AppendWrapsWhenFull"
     AppendStopsWhenFull = "AppendStopsWhenFull"
@@ -95,9 +95,9 @@ class RfMetricReportDefinitionModel(RfResourceBaseModel):
     Metrics: Optional[List[RfMetric]] = Field(default=None)
     # Name: Optional[str] = Field(default=None)
     Oem: Optional[dict[str, Any]] = Field(default=None)
-    ReportActions: Optional[RfReportActions] = Field(default=None)
+    ReportActions: Optional[List[RfReportActionsEnum]] = Field(default=None)
     ReportTimespan: Optional[str] = Field(default=None)
-    ReportUpdates: Optional[RfReportUpdates] = Field(default=None)
+    ReportUpdates: Optional[List[RfReportUpdatesEnum]] = Field(default=None)
     Schedule: Optional[Dict[str, Any]] = Field(default=None)
     Status: Optional[RfStatusModel] = Field(default=None)
     SuppressRepeatedMetricValue: Optional[bool] = Field(default=None)

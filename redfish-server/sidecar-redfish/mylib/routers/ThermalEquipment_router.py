@@ -10,6 +10,7 @@ from mylib.utils.controlUtil import ControlMode_change
 import requests
 from http import HTTPStatus
 from mylib.common.my_resource import MyResource
+from mylib.common.proj_error import ProjRedfishError, ProjRedfishErrorCode
 
 ThermalEquipment_ns = Namespace('', description='ThermalEquipment Collection')
 
@@ -805,20 +806,23 @@ class PrimaryCoolantConnectors1(Resource):
             )
             r.raise_for_status()
 
-        except requests.HTTPError:
+        except requests.HTTPError as e:
             # 如果 CDU 回了 4xx/5xx，直接把它的 status code 和 body 回來
-            try:
-                err_body = r.json()
-            except ValueError:
-                err_body = {"error": r.text}
-            return err_body, r.status_code
+            raise ProjRedfishError(
+                ProjRedfishErrorCode.INTERNAL_ERROR, 
+                f"PATCH {CDU_BASE}/api/v1/cdu/status/op_mode FAIL: details={str(e)}"
+            )
 
         except requests.RequestException as e:
             # 純粹網路／timeout／連線失敗
-            return {
-                "error": "Forwarding to the CDU control service failed",
-                "details": str(e)
-            }, 502
+            # return {
+            #     "error": "Forwarding to the CDU control service failed",
+            #     "details": str(e)
+            # }, 502
+            raise ProjRedfishError(
+                ProjRedfishErrorCode.SERVICE_TEMPORARILY_UNAVAILABLE, 
+                f"Forwarding to the CDU control service failed: {str(e)}"
+            )
         
 
         if controlmode == "auto":

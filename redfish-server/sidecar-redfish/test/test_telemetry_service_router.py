@@ -87,7 +87,7 @@ telemetry_service_testcases = [
             "@odata.id": "/redfish/v1/TelemetryService/MetricReports",
             "@odata.type": "#MetricReportCollection.MetricReportCollection",
             "Name": "CDU Metric Reports Collection",
-            "Members": [
+            "Members": [ # TODO: 如果Members沒有要assert值，不要寫以下三行會比較看的懂。
                 {"@odata.id": "/redfish/v1/TelemetryService/MetricReports/CDU_Report_1"},
                 {"@odata.id": "/redfish/v1/TelemetryService/MetricReports/CDU_Report_2"},
                 {"@odata.id": "/redfish/v1/TelemetryService/MetricReports/CDU_Report_3"}
@@ -116,7 +116,7 @@ telemetry_service_testcases = [
             "@odata.type": "#MetricDefinitionCollection.MetricDefinitionCollection",
             "@odata.context": "/redfish/v1/$metadata#MetricDefinitionCollection.MetricDefinitionCollection",
             "Name": "Metric Definition Collection",
-            "Members":[
+            "Members":[ # TODO: 同上
                 {"@odata.id": "/redfish/v1/TelemetryService/MetricDefinitions/time"},
                 {"@odata.id": "/redfish/v1/TelemetryService/MetricDefinitions/coolant_supply_temperature"}
             ],
@@ -200,6 +200,7 @@ def test_telemetry_service_api(client, basic_auth_header, testcase):
 
     for key, value in testcase["assert_cases"].items():
 
+        # TODO: 只有MetricReports的數量限定在2048筆，但/MetricDefinitions沒有限制
         if key == "Members@odata.count" :
             actual_count = resp_json.get("Members@odata.count", 0)
             assert 0 < actual_count <= 2048, f"Members@odata.count out of range: {actual_count}"

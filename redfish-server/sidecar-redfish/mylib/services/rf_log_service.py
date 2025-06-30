@@ -4,8 +4,10 @@
 import os
 import datetime
 import subprocess, json
+from typing import List, Dict
 from load_env import redfish_info
 from http import HTTPStatus
+from cachetools import LRUCache, cached
 from mylib.services.base_service import BaseService
 from mylib.models.rf_networkprotocol_model import RfNetworkProtocolModel
 from mylib.models.rf_snmp_model import RfSnmpModel
@@ -24,10 +26,24 @@ from mylib.models.rf_log_entry_model import (
 )
 from mylib.models.rf_status_model import RfStatusModel, RfStatusHealth, RfStatusState
 from mylib.utils.DateTimeUtil import DateTimeUtil
-from mylib.common.proj_error import ProjError
+from mylib.common.proj_error import ProjError, ProjRedfishError, ProjRedfishErrorCode
 from mylib.adapters.webapp_json_reader import WebAppJsonReader, WebAppSignalRecordModel
 
 class RfLogService(BaseService):
+    _shared_cache = LRUCache(maxsize=30)
+
+    @cached(cache=_shared_cache)
+    def logservice_ids(self) -> List[str]:
+        return redfish_info["LogServices"].keys()
+    
+    @cached(cache=_shared_cache)
+    def enabled_logservice_ids(self) -> List[str]:
+        return [ key for key, obj in redfish_info["LogServices"].items() if obj.get("Enabled", True) ]
+    
+    @cached(cache=_shared_cache)
+    def enabled_logservices(self) -> List[Dict]:
+        return [ obj for key, obj in redfish_info["LogServices"].items() if obj.get("Enabled", True) ]
+    
     def fetch_LogServices(self):
         """
         Example:
@@ -66,8 +82,8 @@ class RfLogService(BaseService):
         """
         對應URI: /redfish/v1/Managers/CDU/LogServices/{log_service_id}
         """
-        if log_service_id != "1":
-            raise ProjError(HTTPStatus.NOT_FOUND.value, f"/LogService/{log_service_id} is not exist!")
+        if log_service_id not in self.enabled_logservice_ids():
+            raise ProjRedfishError(ProjRedfishErrorCode.RESOURCE_NOT_FOUND, f"/LogService/{log_service_id} is not exist!")
         
         log_entries = WebAppJsonReader.read_all_errorlog_entries()
         is_health = WebAppAPIAdapter.check_health()
@@ -110,8 +126,8 @@ class RfLogService(BaseService):
         """
         對應URI: /redfish/v1/Managers/CDU/LogServices/{log_service_id}/Entries
         """
-        if log_service_id != "1":
-            raise ProjError(HTTPStatus.NOT_FOUND.value, f"LogService {log_service_id} is not exist!")
+        if log_service_id not in self.enabled_logservice_ids():
+            raise ProjRedfishError(ProjRedfishErrorCode.RESOURCE_NOT_FOUND, f"LogService {log_service_id} is not exist!")
         
         log_entries = WebAppJsonReader.read_all_errorlog_entries()
 
@@ -153,13 +169,13 @@ class RfLogService(BaseService):
         """
         對應URI: /redfish/v1/Managers/CDU/LogServices/{log_service_id}/Entries/{entry_id}
         """
-        if log_service_id != "1":
-            raise ProjError(HTTPStatus.NOT_FOUND.value, f"/LogService/{log_service_id} is not exist!")
+        if log_service_id not in self.enabled_logservice_ids():
+            raise ProjRedfishError(ProjRedfishErrorCode.RESOURCE_NOT_FOUND, f"/LogService/{log_service_id} is not exist!")
         
         log_entries = WebAppJsonReader.read_all_errorlog_entries()
 
         if int(entry_id) > len(log_entries) or int(entry_id) < 1:
-            raise ProjError(HTTPStatus.NOT_FOUND.value, f"/LogService/{log_service_id}/Entries/{entry_id} is not exist!")
+            raise ProjRedfishError(ProjRedfishErrorCode.RESOURCE_NOT_FOUND, f"/LogService/{log_service_id}/Entries/{entry_id} is not exist!")
 
         signal_record = log_entries[int(entry_id) - 1]
 

@@ -18,11 +18,19 @@ import base64
 from typing import List, Dict, Any
 import pytest
 import logging
+from enum import Enum
 from pytest_metadata.plugin import metadata_key
 from app import app
 
 # 讓 logging 輸出到 stdout，pytest-html 才能接收到docstring
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+class AssertType(str, Enum):
+    CONSTANT     = "constant" # assert的值是常數(ex: redfish schema version)
+    CONFIGURABLE = "configurable" # assert的值是可配置的(ex: 網路設定存於sqlite)
+    DYNAMIC      = "dynamic" # assert的值是動態的(ex: sensor的讀值)
+    LENGTH_GT_0  = "length_gt_0" # 陣列的長度要大於0 (很多`Members`會需要這樣測)
+    
 
 def pytest_configure(config):
     """會顯示在 html report 的 Environment 部分"""

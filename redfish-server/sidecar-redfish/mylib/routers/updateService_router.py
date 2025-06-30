@@ -5,6 +5,7 @@ import requests
 import os
 from mylib.utils.load_api import load_raw_from_api 
 from mylib.utils.load_api import CDU_BASE
+from mylib.common.proj_error import ProjRedfishError, ProjRedfishErrorCode
 
 
 
@@ -36,17 +37,17 @@ FirmwareInventory_data = {
 
     "Members@odata.count": 2, # 未串
     "Members": [
-        {"@odata.id": "/redfish/v1/UpdateService/FirmwareInventory/WebInterface"},
-        {"@odata.id": "/redfish/v1/UpdateService/FirmwareInventory/ControlUnit_1"}
+        {"@odata.id": "/redfish/v1/UpdateService/FirmwareInventory/System_Software"},
+        {"@odata.id": "/redfish/v1/UpdateService/FirmwareInventory/Control_Firmware"}
     ],
 }
 
-WebInterface_data = {
-    "@odata.id": "/redfish/v1/UpdateService/FirmwareInventory/WebInterface" ,
-    "@odata.type": "#SoftwareInventory.v1_3_0.SoftwareInventory",
-    "Id": "WebInterface",
-    "Name": "Web Interface firmware",
-    "Manufacturer": "supermicro",
+System_Software_data = {
+    "@odata.id": "/redfish/v1/UpdateService/FirmwareInventory/System_Software" ,
+    "@odata.type": "#SoftwareInventory.v1_12_0.SoftwareInventory",
+    "Id": "System_Software",
+    "Name": "System_Software",
+    "Manufacturer": "Supermicro",
     # 更新日
     "ReleaseDate": "2025-02-21T06:02:08Z",
     # 是否可更新
@@ -61,25 +62,6 @@ WebInterface_data = {
     }
 }
 
-
-# FirmwareInventoryPC_data = {
-#     "@odata.type": "#PC.v0100.PC",
-#     "Id": "PC",
-#     "Name": "PC version",
-#     "Version": "0100",
-#     "SoftwareId": "PC-Version",
-#     "@odata.id": "/redfish/v1/UpdateService/FirmwareInventory/PC"     
-# }
-
-# FirmwareInventoryPLC_data = {
-#     "@odata.type": "#PLC.PLC",
-#     "Id": "PLC",
-#     "Name": "PLC version",
-#     "Version": "0107",
-#     "SoftwareId": "PLC-Version",
-#     "@odata.id": "/redfish/v1/UpdateService/FirmwareInventory/PLC"     
-# }
-
 @update_ns.route("/UpdateService")
 class UpdateService(Resource):
     def get(self):
@@ -91,43 +73,34 @@ class FirmwareInventory(Resource):
     def get(self):
 
         return FirmwareInventory_data  
-
-@update_ns.route("/UpdateService/FirmwareInventory/WebInterface")
+# System Software
+@update_ns.route("/UpdateService/FirmwareInventory/System_Software")
 class FirmwareInventoryWebInterface(Resource):
     def get(self):
         release_date = load_raw_from_api(f"{CDU_BASE}/api/v1/cdu/components/display/version")["version"]["Release_Time"]
         # fmt = os.getenv("DATETIME_FORMAT") 
         # dt = datetime.strptime(release_date, "%Y-%m-%d %H:%M:%S")
         # release_date = dt.strftime(fmt)
-        WebInterface_data["ReleaseDate"] = release_date + "T"
-        WebInterface_data["Version"] = load_raw_from_api(f"{CDU_BASE}/api/v1/cdu/components/display/version")["version"]["WebUI"]
+        System_Software_data["ReleaseDate"] = release_date + "T"
+        System_Software_data["Version"] = load_raw_from_api(f"{CDU_BASE}/api/v1/cdu/components/display/version")["version"]["WebUI"]
         # WebInterface_data["Oem"]["supermicro"]["Redfish"] = load_raw_from_api(f"{CDU_BASE}/api/v1/cdu/components/display/version")["version"]["Redfish_Server"]
-        return WebInterface_data  
+        return System_Software_data  
 
-from werkzeug.datastructures import FileStorage
-upload_parser = update_ns.parser()
-upload_parser.add_argument(
-    'File',
-    location='files',
-    type=FileStorage,
-    required=True,
-    help='Firmware zip file'
-)
-
-@update_ns.route("/UpdateService/FirmwareInventory/ControlUnit_1")
+# Control Firmware
+@update_ns.route("/UpdateService/FirmwareInventory/Control_Firmware")
 class FirmwareInventoryControlUnit_1(Resource):
     def get(self):
         controlunit1_data = {
-            "@odata.id": "/redfish/v1/UpdateService/FirmwareInventory/ControlUnit_1" ,
-            "@odata.type": "#SoftwareInventory.v1_3_0.SoftwareInventory",
-            "Id": "ControlUnit_1",
-            "Name": "PLC version",
-            "Manufacturer": "supermicro",
+            "@odata.id": "/redfish/v1/UpdateService/FirmwareInventory/Control_Firmware" ,
+            "@odata.type": "#SoftwareInventory.v1_12_0.SoftwareInventory",
+            "Id": "Control_Firmware",
+            "Name": "Control_Firmware",
+            "Manufacturer": "Supermicro",
             # 更新日
             # "ReleaseDate": "2025-02-21T06:02:08Z", # TBD
             # 是否可更新
             "Updateable": False,    
-            "Version": str(load_raw_from_api(f"{CDU_BASE}/api/v1/cdu/components/display/version")["version"]["PLC"]),
+            "Version": "0" + str(load_raw_from_api(f"{CDU_BASE}/api/v1/cdu/components/display/version")["version"]["PLC"]),
             "SoftwareId": "PLC-VERSION",
             "Oem": {}
         }
@@ -153,6 +126,15 @@ class SimpleUpdateActionInfo(Resource):
           ]
         }, 200
 
+from werkzeug.datastructures import FileStorage 
+upload_parser = update_ns.parser()
+upload_parser.add_argument(
+    'File',
+    location='files',
+    type=FileStorage,
+    required=True,
+    help='Firmware zip file'
+)
 AllowableValues = {"HTTP","HTTPS"}
 @update_ns.route("/UpdateService/Actions/UpdateService.SimpleUpdate")
 class ActionsUpdateCduSimpleUpdate(Resource):
@@ -170,7 +152,8 @@ class ActionsUpdateCduSimpleUpdate(Resource):
                 
                 # 若 client 指定了 TransferProtocol，要檢查是否合法
                 if proto and proto not in AllowableValues:
-                    return {"error": f"TransferProtocol must be one of {list(AllowableValues)}"}, 400
+                    # return {"error": f"TransferProtocol must be one of {list(AllowableValues)}"}, 400
+                    raise ProjRedfishError(ProjRedfishErrorCode.GENERAL_ERROR, f"TransferProtocol must be one of {list(AllowableValues)}")
 
                 # 如果 URI 裡沒有 scheme，就套用 TransferProtocol（或預設 HTTP）
                 if "://" not in image_uri:
@@ -182,47 +165,39 @@ class ActionsUpdateCduSimpleUpdate(Resource):
 
                     file_download = requests.get(image_uri, timeout=60)
                     if file_download.status_code != 200:
-                        return {"error": f"Download failed: HTTP {file_download.status_code}"}, 400
+                        # return {"error": f"Download failed: HTTP {file_download.status_code}"}, 400
+                        raise ProjRedfishError(ProjRedfishErrorCode.GENERAL_ERROR, f"Download failed: HTTP {file_download.status_code}")
 
                     # 下載成功後，準備檔案傳遞給內部 API
                     files = {"file": ("upload.gpg", file_download.content, "application/pgp-encrypted")}
                     r = requests.post(ORIGIN_UPLOAD_API, files=files, timeout=(10, None))
                     return "upload success, it will reboot", 200
                 else:
-                    return {"error": "Missing ImageURI in JSON"}, 400
+                    # return {"error": "Missing ImageURI in JSON"}, 400
+                    raise ProjRedfishError(ProjRedfishErrorCode.PROPERTY_MISSING, "Missing ImageURI in JSON")
             except requests.RequestException as e:
-                return {"error": "Download or upload failed", "details": str(e)}, 502
+                # return {"error": "Download or upload failed", "details": str(e)}, 502
+                raise ProjRedfishError(ProjRedfishErrorCode.SERVICE_TEMPORARILY_UNAVAILABLE, f"Download or upload failed: {str(e)}")
             except Exception as e:
-                return {"error": f"Internal Error: {str(e)}"}, 500
+                # return {"error": f"Internal Error: {str(e)}"}, 500
+                raise ProjRedfishError(ProjRedfishErrorCode.INTERNAL_ERROR, f"Internal Error: {str(e)}")
 
         # 檢查是否有檔案上傳
         elif 'ImageFile' in request.files:
             try:
                 file = request.files.get("ImageFile")
                 if not file:
-                     return {"error": "No file uploaded"}, 400
+                    # return {"error": "No file uploaded"}, 400
+                    raise ProjRedfishError(ProjRedfishErrorCode.PROPERTY_MISSING, "No file uploaded")
                 files = {"file": (file.filename, file.stream, file.mimetype)}
                 r = requests.post(ORIGIN_UPLOAD_API, files=files, timeout=(10, None))
                 return "upload success, it will reboot", 200
             except requests.HTTPError:
                 return r.json() if r.headers.get("Content-Type","").startswith("application/json") else {"error": r.text}, r.status_code
             except requests.RequestException as e:
-                return {"error": "upload failed", "details": str(e)}, 502
+                # return {"error": "upload failed", "details": str(e)}, 502
+                raise ProjRedfishError(ProjRedfishErrorCode.SERVICE_TEMPORARILY_UNAVAILABLE, f"upload failed: {str(e)}")
         
         # 如果既沒有檔案也沒有 ImageURI，返回錯誤
-        return {"error": "No file or ImageURI provided"}, 400
+        raise ProjRedfishError(ProjRedfishErrorCode.PROPERTY_MISSING, "No file or ImageURI provided")
         
-        
-        
-    
-# @update_ns.route("/UpdateService/FirmwareInventory/PC")
-# class FirmwareInventoryPC(Resource):
-#     def get(self):
-
-#         return FirmwareInventoryPC_data   
-
-# @update_ns.route("/UpdateService/FirmwareInventory/PLC")
-# class FirmwareInventoryPLC(Resource): 
-#     def get(self):
-
-#         return FirmwareInventoryPLC_data   
