@@ -577,142 +577,137 @@ class ManagersCDUNetworkProtocolHTTPSCertificates(Resource):
 #====================================================== 
 # EthernetInterfaces
 #====================================================== 
+Ethernet_patch = managers_ns.model('EthernetPatch', {
+    'InterfaceEnabled': fields.Boolean(
+        required=True,
+        description='啟用或停用 網卡',
+        example=True
+    ),
+})
+
 @managers_ns.route("/Managers/CDU/EthernetInterfaces") # get
 class ManagersCDUEthernetInterfaces(Resource):
     # # @requires_auth
     @managers_ns.doc("managers_cdu_ethernet_interfaces")
     def get(self):
-        # return RfManagersService().get_ethernetinterfaces()
-        return ethernet_interfaces_data
+        return RfManagersService().get_ethernetinterfaces()
+        # return ethernet_interfaces_data
     
 @managers_ns.route("/Managers/CDU/EthernetInterfaces/<string:ethernet_interfaces_id>") # get patch
 class ManagersCDUEthernetInterfacesMain(Resource):
     # # @requires_auth
     @managers_ns.doc("managers_cdu_ethernet_interfaces")
     def get(self, ethernet_interfaces_id):
-        ethernet_data = load_raw_from_api(f"{CDU_BASE}/api/v1/cdu/components/network")[ethernet_interfaces_id]
+        # ethernet_data = load_raw_from_api(f"{CDU_BASE}/api/v1/cdu/components/network")[ethernet_interfaces_id]
         # print(ethernet_data)
-        # return RfManagersService().get_ethernetinterfaces_id(ethernet_interfaces_id)
-        ethernet_interfaces_main_data ={
-            "@odata.id": f"/redfish/v1/Managers/CDU/EthernetInterfaces/{ethernet_interfaces_id}",
-            "@odata.type": "#EthernetInterface.v1_12_4.EthernetInterface",
-            "@odata.context": "/redfish/v1/$metadata#EthernetInterface.v1_12_4.EthernetInterface",
+        return RfManagersService().get_ethernetinterfaces_id(ethernet_interfaces_id)
+        # ethernet_interfaces_main_data ={
+        #     "@odata.id": f"/redfish/v1/Managers/CDU/EthernetInterfaces/{ethernet_interfaces_id}",
+        #     "@odata.type": "#EthernetInterface.v1_12_4.EthernetInterface",
+        #     "@odata.context": "/redfish/v1/$metadata#EthernetInterface.v1_12_4.EthernetInterface",
             
-            "Id": str(ethernet_interfaces_id),
-            "Name": f"Manager Ethernet Interface {ethernet_interfaces_id}",
-            "Description": "Network Interface of the CDU Management Controller",
+        #     "Id": str(ethernet_interfaces_id),
+        #     "Name": f"Manager Ethernet Interface {ethernet_interfaces_id}",
+        #     "Description": "Network Interface of the CDU Management Controller",
             
-            # TBD 不知道怎麼判斷
-            "Status": {
-                "State": "Enabled",
-                "Health": "OK"
-            },
+        #     # TBD 不知道怎麼判斷
+        #     "Status": {
+        #         "State": "Enabled",
+        #         "Health": "OK"
+        #     },
             
-            "LinkStatus": "LinkUp",
-            "InterfaceEnabled": True,
-            "PermanentMACAddress": "e4-5f-01-3e-98-f8", # profile不用
-            "MACAddress": "e4-5f-01-3e-98-f8",
-            "SpeedMbps": 1000,
-            "AutoNeg": True, # profile不用
-            "FullDuplex": True, # profile不用
-            "MTUSize": 1500, # profile不用
+        #     "LinkStatus": "LinkUp",
+        #     "InterfaceEnabled": True,
+        #     "PermanentMACAddress": "e4-5f-01-3e-98-f8", # profile不用
+        #     "MACAddress": "e4-5f-01-3e-98-f8",
+        #     "SpeedMbps": 1000,
+        #     "AutoNeg": True, # profile不用
+        #     "FullDuplex": True, # profile不用
+        #     "MTUSize": 1500, # profile不用
             
-            # 可由 client 修改的欄位
-            "@Redfish.WriteableProperties": [
-                "InterfaceEnabled",
-                "MTUSize",
-                "HostName",
-                "FQDN",
-                "VLAN",
-                "IPv4Addresses",
-                "IPv6StaticAddresses"
-            ],
+        #     # 可由 client 修改的欄位
+        #     "@Redfish.WriteableProperties": [
+        #         "InterfaceEnabled",
+        #         "MTUSize",
+        #         "HostName",
+        #         "FQDN",
+        #         "VLAN",
+        #         "IPv4Addresses",
+        #         "IPv6StaticAddresses"
+        #     ],
             
-            "HostName": "localhost",
-            "FQDN": None,
+        #     "HostName": "localhost",
+        #     "FQDN": None,
 
-            # VLAN 設定 profile不用
-            "VLAN": {
-                "VLANEnable": False,
-                "VLANId": None
-            },
-            # IPv4 位址清單
-            "IPv4Addresses": [
-                {
-                    "Address": ethernet_data["IPv4Address"], 
-                    "SubnetMask": ethernet_data["v4Subnet"], 
-                    "AddressOrigin": "DHCP", 
-                    "Gateway": ethernet_data["v4DefaultGateway"],
-                    "Oem": {
-                        "Supermicro": {
-                            "Ipv4DHCP": {"Enabled": ethernet_data["v4dhcp_en"]},
-                            "Ipv4DNS": {"Auto": ethernet_data["v4AutoDNS"]},
-                            "Ipv4DNSPrimary": {"Address":ethernet_data["v4DNSPrimary"]},
-                            "Ipv4DNSSecondary": {"Address":ethernet_data["v4DNSOther"]}
-                        }
-                    }
-                }
-            ],
-            # profile不用跑ipv6
-            "MaxIPv6StaticAddresses": 1,
-            # IPv6 位址清單 
-            "IPv6AddressPolicyTable": [
-                {
-                    "Prefix": "::1/128",
-                    "Precedence": 50,
-                    "Label": 0
-                }
-            ],
-            # IPv6 靜態位址
-            "IPv6StaticAddresses": [],
-            # IPv6 預設閘道（若無則為 null）
-            "IPv6DefaultGateway": None,
-            # IPv6 位址優先權表
-            "IPv6Addresses": [
-                {
-                    "Address": ethernet_data["IPv6Address"],
-                    "PrefixLength": ethernet_data["v6Subnet"],
-                    "AddressOrigin": "DHCPv6", 
-                    "AddressState": "Preferred", 
-                    "Oem": {
-                        "Ipv6Gateway": ethernet_data["v6DefaultGateway"],
-                        "Ipv6DHCP": ethernet_data["v6dhcp_en"],
-                        "Ipv6DNS": ethernet_data["v6AutoDNS"],
-                        "Ipv6DNSPrimary": ethernet_data["v6DNSPrimary"],
-                        "Ipv6DNSSecondary": ethernet_data["v6DNSOther"]
-                    }
-                }
-            ],
+        #     # VLAN 設定 profile不用
+        #     "VLAN": {
+        #         "VLANEnable": False,
+        #         "VLANId": None
+        #     },
+        #     # IPv4 位址清單
+        #     "IPv4Addresses": [
+        #         {
+        #             "Address": ethernet_data["IPv4Address"], 
+        #             "SubnetMask": ethernet_data["v4Subnet"], 
+        #             "AddressOrigin": "DHCP", 
+        #             "Gateway": ethernet_data["v4DefaultGateway"],
+        #             "Oem": {
+        #                 "Supermicro": {
+        #                     "Ipv4DHCP": {"Enabled": ethernet_data["v4dhcp_en"]},
+        #                     "Ipv4DNS": {"Auto": ethernet_data["v4AutoDNS"]},
+        #                     "Ipv4DNSPrimary": {"Address":ethernet_data["v4DNSPrimary"]},
+        #                     "Ipv4DNSSecondary": {"Address":ethernet_data["v4DNSOther"]}
+        #                 }
+        #             }
+        #         }
+        #     ],
+        #     # profile不用跑ipv6
+        #     "MaxIPv6StaticAddresses": 1,
+        #     # IPv6 位址清單 
+        #     "IPv6AddressPolicyTable": [
+        #         {
+        #             "Prefix": "::1/128",
+        #             "Precedence": 50,
+        #             "Label": 0
+        #         }
+        #     ],
+        #     # IPv6 靜態位址
+        #     "IPv6StaticAddresses": [],
+        #     # IPv6 預設閘道（若無則為 null）
+        #     "IPv6DefaultGateway": None,
+        #     # IPv6 位址優先權表
+        #     "IPv6Addresses": [
+        #         {
+        #             "Address": ethernet_data["IPv6Address"],
+        #             "PrefixLength": ethernet_data["v6Subnet"],
+        #             "AddressOrigin": "DHCPv6", 
+        #             "AddressState": "Preferred", 
+        #             "Oem": {
+        #                 "Ipv6Gateway": ethernet_data["v6DefaultGateway"],
+        #                 "Ipv6DHCP": ethernet_data["v6dhcp_en"],
+        #                 "Ipv6DNS": ethernet_data["v6AutoDNS"],
+        #                 "Ipv6DNSPrimary": ethernet_data["v6DNSPrimary"],
+        #                 "Ipv6DNSSecondary": ethernet_data["v6DNSOther"]
+        #             }
+        #         }
+        #     ],
             
-            # DNS 伺服器
-            "NameServers": [
-                "localhost"
-            ],
+        #     # DNS 伺服器
+        #     "NameServers": [
+        #         "localhost"
+        #     ],
             
-            "Oem": {},
-        }
-        return ethernet_interfaces_main_data    
+        #     "Oem": {},
+        # }
+        # return ethernet_interfaces_main_data    
         
-        
-        # 可patch的欄位
-        # MACAddress 當前生效的 MAC 位址，可用於作業系統層面識別。
-        # SpeedMbps(AutoNeg=false 才能寫) 	目前連線速率（Mbit/s）
-        # AutoNeg 是否啟用速率／雙工自動協商
-        # FullDuplex	是否啟用全雙工模式。
-        # MTUSize	最大傳輸單元（Bytes），影響封包最大長度。
-        # HostName	DNS 主機名稱（不含網域部分）。
-        # FQDN	完整網域名稱，包含主機＋網域。
-        # NameServers	正在使用中的 DNS 伺服器清單。
-        # StaticNameServers	靜態定義的 DNS 伺服器清單，可與 DHCP 提供項目併用或替代。
-        # IPv4StaticAddresses	靜態 IPv4 位址清單，可新增/刪除/修改。
-        # IPv6StaticAddresses	靜態 IPv6 位址清單，可新增/刪除/修改。
-        # IPv6StaticDefaultGateways	靜態 IPv6 預設閘道清單，可新增/刪除/修改。
-        # DHCPv4	DHCP v4 設定整組（DHCPEnabled、UseDNSServers、UseDomainName、UseGateway、UseNTPServers、UseStaticRoutes）
-        # DHCPv6	DHCP v6 設定整組（OperatingMode、UseDNSServers、UseDomainName、UseNTPServers、UseRapidCommit）
-        # StatelessAddressAutoConfig	SLAAC IPv4/IPv6 自動組態開關（IPv4AutoConfigEnabled、IPv6AutoConfigEnabled）。
-        # VLAN	單一 VLAN 設定：VLANEnable、VLANId、VLANPriority、Tagged。
-        # RelatedInterfaces	團隊介面連結，用於設定 Bonding/Team 組態。
-        # TeamMode	團隊模式（如 None、ActiveBackup、IEEE802_3ad…）。
+    # @managers_ns.expect(Ethernet_patch, validate=True)
+    # def patch(self, ethernet_interfaces_id):
+    #     """
+    #     更新 EthernetInterfaces 的設定
+    #     """
+    #     body = request.get_json(force=True)
+    #     return RfManagersService().patch_ethernetinterfaces(ethernet_interfaces_id, body)
     
 #=========================================0514新增==================================================  
 # LogServices_data = {

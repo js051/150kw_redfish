@@ -44,7 +44,7 @@ FirmwareInventory_data = {
 
 System_Software_data = {
     "@odata.id": "/redfish/v1/UpdateService/FirmwareInventory/System_Software" ,
-    "@odata.type": "#SoftwareInventory.v1_12_0.SoftwareInventory",
+    "@odata.type": "#SoftwareInventory.v1_11_0.SoftwareInventory",
     "Id": "System_Software",
     "Name": "System_Software",
     "Manufacturer": "Supermicro",
@@ -81,7 +81,7 @@ class FirmwareInventoryWebInterface(Resource):
         # fmt = os.getenv("DATETIME_FORMAT") 
         # dt = datetime.strptime(release_date, "%Y-%m-%d %H:%M:%S")
         # release_date = dt.strftime(fmt)
-        System_Software_data["ReleaseDate"] = release_date + "T"
+        System_Software_data["ReleaseDate"] = release_date + "T" + "09:00:00Z"
         System_Software_data["Version"] = load_raw_from_api(f"{CDU_BASE}/api/v1/cdu/components/display/version")["version"]["WebUI"]
         # WebInterface_data["Oem"]["supermicro"]["Redfish"] = load_raw_from_api(f"{CDU_BASE}/api/v1/cdu/components/display/version")["version"]["Redfish_Server"]
         return System_Software_data  
@@ -92,7 +92,7 @@ class FirmwareInventoryControlUnit_1(Resource):
     def get(self):
         controlunit1_data = {
             "@odata.id": "/redfish/v1/UpdateService/FirmwareInventory/Control_Firmware" ,
-            "@odata.type": "#SoftwareInventory.v1_12_0.SoftwareInventory",
+            "@odata.type": "#SoftwareInventory.v1_11_0.SoftwareInventory",
             "Id": "Control_Firmware",
             "Name": "Control_Firmware",
             "Manufacturer": "Supermicro",

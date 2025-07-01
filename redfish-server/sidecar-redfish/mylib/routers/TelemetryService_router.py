@@ -1,12 +1,8 @@
-# mylib/routers/TelemetryService_router.py
-
 from flask_restx import Namespace, Resource
-from flask import abort
-
-from dotenv import load_dotenv
-from flask import abort
+from flask import abort, jsonify
 from mylib.services.rf_telemetry_service import RfTelemetryService
 from mylib.models.sensor_log_model import SensorLogModel
+
 telemetry_service = RfTelemetryService()
 
 # load_dotenv(dotenv_path=".env-dev") # marked by welson (`load_dotenv()` is only allowed in app.p)
@@ -44,7 +40,7 @@ class TelemetryService(Resource):
     def get(self):
         """Returns the Telemetry Service root resource."""
         # 返回固定的靜態服務入口點資訊
-        return TelemetryService_data
+        return jsonify(TelemetryService_data)
 
 
 @TelemetryService_ns.route("/TelemetryService/MetricReports")
@@ -53,7 +49,9 @@ class MetricReportCollection(Resource):
     def get(self):
         """Returns the collection of available MetricReports."""
         # 直接調用 service 方法並返回結果
-        return telemetry_service.get_all_reports()
+        return jsonify(
+            telemetry_service.get_all_reports()
+        )
 
 
 @TelemetryService_ns.route("/TelemetryService/MetricReports/<string:report_id>")
@@ -65,7 +63,7 @@ class MetricReport(Resource):
         report = telemetry_service.get_report_by_id(report_id)
         if not report:
             abort(404, f"MetricReport with ID '{report_id}' not found.")
-        return report
+        return jsonify(report)
 
 
 # 0513新增
@@ -124,7 +122,9 @@ class MetricDefinitionCollection(Resource):
         #     "Members@odata.count": len(members),
         #     "Members": members,
         # }, 200
-        return telemetry_service.fetch_TelemetryService_MetricDefinitions()
+        return jsonify(
+            telemetry_service.fetch_TelemetryService_MetricDefinitions()
+        )
 
 
 # Individual MetricDefinition
@@ -142,14 +142,18 @@ class MetricDefinition(Resource):
         #         )
         #         m["@odata.type"] = "#MetricDefinition.v1_0_0.MetricDefinition"
         #         return m, 200
-        return telemetry_service.fetch_TelemetryService_MetricDefinitions(metric_definition_id)
+        return jsonify(
+            telemetry_service.fetch_TelemetryService_MetricDefinitions(metric_definition_id)
+        )
 
 
 # MetricReportDefinitions Collection
 @TelemetryService_ns.route("/TelemetryService/MetricReportDefinitions")
 class MetricReportDefCollection(Resource):
     def get(self):
-        return telemetry_service.fetch_TelemetryService_MetricReportDefinitions()
+        return jsonify(
+            telemetry_service.fetch_TelemetryService_MetricReportDefinitions()
+        )
         """
         members = [
             {
@@ -169,12 +173,12 @@ class MetricReportDefCollection(Resource):
 
 
 # Individual MetricReportDefinition
-@TelemetryService_ns.route(
-    "/TelemetryService/MetricReportDefinitions/<string:metric_report_definition_id>"
-)
+@TelemetryService_ns.route("/TelemetryService/MetricReportDefinitions/<string:metric_report_definition_id>")
 class MetricReportDef(Resource):
     def get(self, metric_report_definition_id):
-        return telemetry_service.fetch_TelemetryService_MetricReportDefinitions(metric_report_definition_id)
+        return jsonify(
+            telemetry_service.fetch_TelemetryService_MetricReportDefinitions(metric_report_definition_id)
+        )
         '''
         for r in REPORT_DEFS:
             if r["Id"] == report_id:

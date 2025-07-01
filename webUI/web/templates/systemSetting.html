@@ -364,16 +364,16 @@ block styles %}
 
         $("#actionSelect").trigger("change");
 
-        $.ajax({
-            url: "/get_modbus_ip",
-            type: "GET",
-            success: function (data) {
-                $("#modbusIpInput").val(data.modbus_ip);
-            },
-            error: function () {
-                $("#result").text("Unable to retrieve current MODBUS IP.");
-            },
-        });
+        // $.ajax({
+        //     url: "/get_modbus_ip",
+        //     type: "GET",
+        //     success: function (data) {
+        //         $("#modbusIpInput").val(data.modbus_ip);
+        //     },
+        //     error: function () {
+        //         $("#result").text("Unable to retrieve current MODBUS IP.");
+        //     },
+        // });
 
         $("#updateIpBtn").on("click", function () {
             var modbusIp = $("#modbusIpInput").val();

@@ -20,6 +20,7 @@ from load_env import hardware_info
 from mylib.utils.load_api import load_raw_from_api, CDU_BASE
 from mylib.utils.controlUtil import ControlMode_change
 from mylib.common.proj_error import ProjRedfishError, ProjRedfishErrorCode
+from mylib.utils.system_info import get_uptime
 
 class RfChassisService(BaseService):
     SENSOR_IDS = {
@@ -311,8 +312,9 @@ class RfChassisService(BaseService):
         if reading_info:
             sensor_value_json = self._read_components_chassis_summary_from_cache()
             if reading_info['fieldNameToFetchSensorValue'] == "EnergykWh":
+                boot_time_h = get_uptime()[0]
                 EnergykWh_data = self._calc_delta_value_status(sensor_value_json, "power_total")
-                reading_info["Reading"] = round(EnergykWh_data[0] / (60 * 1000), 2)
+                reading_info["Reading"] = round(EnergykWh_data[0] * boot_time_h / 1000, 2)
                 reading_info["Status"] = EnergykWh_data[1]
             else:
                 reading_info["Reading"], reading_info["Status"] = self._calc_delta_value_status(sensor_value_json, reading_info["fieldNameToFetchSensorValue"])

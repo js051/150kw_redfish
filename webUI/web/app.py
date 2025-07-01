@@ -6545,7 +6545,7 @@ def write_version():
 @app.route("/read_version", methods=["GET"])
 @login_required
 def read_version():
-        ###讀取前端可修改的SN, part number, model及version
+    ###讀取前端可修改的SN, part number, model及version
     if not os.path.exists(f"{web_path}/fw_info.json"):
         with open(f"{web_path}/fw_info.json", "w") as file:
             file.write("")
@@ -6553,24 +6553,27 @@ def read_version():
         FW_Info = json.load(file)
 
     ###讀取我們自己修改的webui, scc_api, snmp, redfish_api, redfish_server, modbus_server版本號
-    
+
     if not os.path.exists(f"{web_path}/fw_info_version.json"):
         with open(f"{web_path}/fw_info_version.json", "w") as file2:
             file2.write("")
     with open(f"{web_path}/fw_info_version.json", "r") as file2:
         FW_Info_Version = json.load(file2)
 
-        
     plc_version = sensorData["plc_version"]
-    FW_Info_Version["PLC"] = plc_version
+    # 使用字符串格式化將 plc_version 補充為4位數，例如 "0107"
+    plc_version_padded = str(plc_version).zfill(4)
+    FW_Info_Version["PLC"] = plc_version_padded
     # 寫回 fw_info_version.json
     with open(f"{web_path}/fw_info_version.json", "w") as file2:
         json.dump(FW_Info_Version, file2, indent=4)
-    
-    # return jsonify({"FW_Info": FW_Info, "plc_version": plc_version})
-    return jsonify({"FW_Info": FW_Info,"FW_Info_Version": FW_Info_Version ,"plc_version": plc_version})
-
-
+    return jsonify(
+        {
+            "FW_Info": FW_Info,
+            "FW_Info_Version": FW_Info_Version,
+            "plc_version": plc_version,
+        }
+    )
 
 @app.route("/set_time", methods=["POST"])
 def set_time():
@@ -7898,111 +7901,7 @@ def restoreFactorySettingAll():
         name="snmp_operation"
     ).move_logs()
 
-    # try:
-    #     error_dir = os.path.join(log_path, "logs", "error")
-    #     old_error_dir = os.path.join(log_path, "logs", "old_error")
 
-    #     if os.path.exists(error_dir) and os.path.isdir(error_dir):
-    #         if not os.path.exists(old_error_dir):
-    #             os.makedirs(old_error_dir)
-
-    #         for filename in os.listdir(error_dir):
-    #             src_file = os.path.join(error_dir, filename)
-    #             dst_file = os.path.join(old_error_dir, filename)
-    #             if os.path.isfile(src_file):
-    #                 # 如果目的地已存在同名檔案，則改名避免覆蓋
-    #                 if os.path.exists(dst_file):
-    #                     name, ext = os.path.splitext(filename)
-    #                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    #                     new_filename = f"{name}.{timestamp}{ext}"
-    #                     dst_file = os.path.join(old_sensor_dir, new_filename)
-
-    #                 shutil.move(src_file, dst_file)
-    #         print("All error log files moved to old_error successfully.")
-    #     else:
-    #         print("Error log directory does not exist.")
-    # except Exception as e:
-    #     print(f"Move log error: {e}")
-        
-
-    # try:
-    #     operation_dir = os.path.join(log_path, "logs", "operation")
-    #     old_operation_dir = os.path.join(log_path, "logs", "old_operation")
-
-    #     if os.path.exists(operation_dir) and os.path.isdir(operation_dir):
-    #         if not os.path.exists(old_operation_dir):
-    #             os.makedirs(old_operation_dir)
-
-    #         for filename in os.listdir(operation_dir):
-    #             src_file = os.path.join(operation_dir, filename)
-    #             dst_file = os.path.join(old_operation_dir, filename)
-    #             if os.path.isfile(src_file):
-    #                 # 如果目的地已存在同名檔案，則改名避免覆蓋
-    #                 if os.path.exists(dst_file):
-    #                     name, ext = os.path.splitext(filename)
-    #                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    #                     new_filename = f"{name}.{timestamp}{ext}"
-    #                     dst_file = os.path.join(old_sensor_dir, new_filename)
-    #                 shutil.move(src_file, dst_file)
-    #         print("All operation log files moved to old_operation successfully.")
-    #     else:
-    #         print("operation log directory does not exist.")
-    # except Exception as e:
-    #     print(f"Move log operation: {e}")
-        
-        
-    # try:
-    #     sensor_dir = os.path.join(log_path, "logs", "sensor")
-    #     old_sensor_dir = os.path.join(log_path, "logs", "old_sensor")
-
-    #     if os.path.exists(sensor_dir) and os.path.isdir(sensor_dir):
-    #         if not os.path.exists(old_sensor_dir):
-    #             os.makedirs(old_sensor_dir)
-
-    #         for filename in os.listdir(sensor_dir):
-    #             src_file = os.path.join(sensor_dir, filename)
-    #             dst_file = os.path.join(old_sensor_dir, filename)
-    #             if os.path.isfile(src_file):
-    #                 # 如果目的地已存在同名檔案，則改名避免覆蓋
-    #                 if os.path.exists(dst_file):
-    #                     name, ext = os.path.splitext(filename)
-    #                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    #                     new_filename = f"{name}.{timestamp}{ext}"
-    #                     dst_file = os.path.join(old_sensor_dir, new_filename)
-
-    #                 shutil.move(src_file, dst_file)
-    #         print("All sensor log files moved to old_sensor successfully.")
-    #     else:
-    #         print("Sensor log directory does not exist.")
-    # except Exception as e:
-    #     print(f"Move log error: {e}")
-        
-
-    # try:
-    #     operation_dir = os.path.join(snmp_path, "RestAPI", "logs", "operation")
-    #     old_operation_dir = os.path.join(snmp_path, "RestAPI", "logs", "old_operation")
-
-    #     if os.path.exists(operation_dir) and os.path.isdir(operation_dir):
-    #         if not os.path.exists(old_operation_dir):
-    #             os.makedirs(old_operation_dir)
-
-    #         for filename in os.listdir(operation_dir):
-    #             src_file = os.path.join(operation_dir, filename)
-    #             dst_file = os.path.join(old_operation_dir, filename)
-    #             if os.path.isfile(src_file):
-    #                 # 如果目的地已存在同名檔案，則改名避免覆蓋
-    #                 if os.path.exists(dst_file):
-    #                     name, ext = os.path.splitext(filename)
-    #                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    #                     new_filename = f"{name}.{timestamp}{ext}"
-    #                     dst_file = os.path.join(old_sensor_dir, new_filename)
-
-    #                 shutil.move(src_file, dst_file)
-    #         print("All operation log files moved to old_operation successfully.")
-    #     else:
-    #         print("operation log directory does not exist.")
-    # except Exception as e:
-    #     print(f"Move log operation: {e}")
     
     ###5. Engineer Mode: Sensor Adjustment Setting恢復預設值
     try:

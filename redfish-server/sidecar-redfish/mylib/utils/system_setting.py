@@ -1,7 +1,10 @@
 import platform
 import subprocess
 import psutil
-
+import subprocess, threading, time, datetime
+#====================================================
+# set NTP
+# ===================================================
 def set_ntp(enable: bool, ntp_server: str):
     """
     跨平台啓用或停用本機 NTP 同步。
@@ -36,4 +39,49 @@ def set_ntp(enable: bool, ntp_server: str):
          
     else:
         raise RuntimeError(f"不支援的作業系統：{os_name}")
+    
+
+#====================================================
+# network switch
+# ===================================================
+def monitor_up(iface, evt: threading.Event):
+    # 啟動一個非同步的監聽子程序
+    p = subprocess.Popen(
+        ["/usr/bin/sudo", "ip", "-j", "monitor", "link", "dev", iface],
+        stdout=subprocess.PIPE,
+        text=True
+    )
+    # 讀它的 stdout
+    for line in p.stdout:
+        if "state UP" in line or "state DOWN" in line:
+            p.terminate()   # 偵測到 UP 就結束監聽
+            evt.set()
+            break
+        
+def set_NetwrokInterface(iface: str, state: bool) -> None:
+    """
+    指定的網路介面
+    """
+    evt = threading.Event()
+    if state:
+        state = "up"
+        # 執行 therading 監聽網路介面狀態變化
+        t = threading.Thread(target=monitor_up, args=(iface, evt), daemon=True)
+        t.start()
+    else:
+        state = "down"
+    
+    try:
+        subprocess.run(
+            ["/usr/bin/sudo", "ip", "link", "set", "dev", iface, state],
+            check=True
+        )
+        
+        if state is "up":
+            got = evt.wait(10)  
+            if not got:
+                raise TimeoutError(f"{iface} is not UP or cannot be UP")
+    except subprocess.CalledProcessError as e:
+        print(f"介面 {iface} 設定失敗：{e}")
+ 
 

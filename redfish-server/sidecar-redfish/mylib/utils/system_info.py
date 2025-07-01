@@ -4,51 +4,6 @@ import subprocess
 import socket
 import time
 import os
-
-#====================================================
-# get system uuid
-#====================================================
-def get_system_uuid():
-    """
-    Get system uuid by command: `sudo dmidecode -s system-uuid`
-    @Author: Chatgpt, welson
-    @Note: You can impl. this function by `pip install python-dmidecode`, only works on specific Linux. 
-    """
-    try:
-        # FAIL: it will requuest user to type-in password in terminal
-        # output = subprocess.check_output(
-        #     ["sudo", "dmidecode", "-s", "system-uuid"],
-        #     stderr=subprocess.DEVNULL  # 隱藏錯誤訊息
-        # ).decode().strip()
-        # return output
-        return str(uuid.uuid5(uuid.NAMESPACE_DNS, str(get_first_mac_psutil())))
-    except Exception as e:
-        return str(uuid.uuid3(uuid.NAMESPACE_DNS, str(get_first_mac_psutil())))
-
-def get_first_mac_psutil() -> str:
-    """
-    抓取所有mac並排序，回傳第一張
-    """
-    macs = []
-    for ifname, addrs in psutil.net_if_addrs().items():
-        for addr in addrs:
-            if addr.family == psutil.AF_LINK:
-                mac = addr.address
-                if mac and mac != "00:00:00:00:00:00":
-                    macs.append(mac)
-    result = sorted(set(macs))         
-    # print(f"MACs: {result}")       
-    return result[0]
-
-#====================================================
-# get network info 
-# ===================================================
-import uuid
-import psutil
-import subprocess
-import socket
-import time
-import os
 import struct
 
 #====================================================
@@ -89,20 +44,33 @@ def get_first_mac_psutil() -> str:
 #====================================================
 # get network info 
 # ===================================================
-def get_default_gateway():
+def get_default_gateways():
     """
-    讀 /proc/net/route，找出 Destination=0 的那行，
-    返回 (gateway_ip, interface_name)，如果找不到則回 (None, None)
+    回傳 dict: { iface_name: gateway_ip, ... }
+    會把 /proc/net/route 中所有 Destination=0 的 default route 全掃一遍。
     """
+    gateways = {}
     with open("/proc/net/route") as f:
         for line in f.readlines()[1:]:
-            fields = line.strip().split()
-            iface, dest, gateway, flags = fields[0], fields[1], fields[2], fields[3]
-            # flags bit1 (0x2) 代表 UP，dest=="00000000" 代表 default route
+            iface, dest, gw, flags = line.split()[:4]
+            # 0.0.0.0/0 且 flags bit1 (0x2) 代表 RTF_GATEWAY
             if dest == "00000000" and int(flags, 16) & 0x2:
-                gw = socket.inet_ntoa(struct.pack("<L", int(gateway, 16)))
-                return gw, iface
-    return None, None
+                # 小端 hex 轉成 IPv4 字串
+                ip = socket.inet_ntoa(struct.pack("<L", int(gw, 16)))
+                gateways[iface] = ip
+    return gateways
+
+def is_dhcp_ipcmd(ifname):
+    """
+    判斷指定的網路介面是否是 DHCP 取得的 IP
+    """
+    try:
+        out = subprocess.check_output(
+            ["ip","addr","show",ifname], text=True
+        )
+        return "dynamic" in out
+    except:
+        return False
 
 def get_physical_nics():
     base = "/sys/class/net"
@@ -117,7 +85,7 @@ def get_physical_nics():
                 name_servers.append(line.split()[1])
 
     # 2. 取得 default gateway
-    default_gw, gw_iface = get_default_gateway()
+    getway_data = get_default_gateways()
 
     interfaces = []
     for name in os.listdir(base):
@@ -131,11 +99,11 @@ def get_physical_nics():
         stat = stats.get(name)
         iface = {
             "Name":            name,
-            "MAC":             None,
-            "IPv4":            None,
-            "SubnetMask":      None,
+            "MAC":             "",
+            "IPv4":            "",
+            "SubnetMask":      "",
             "AddressOrigin":   "Static",
-            "Gateway":         None,
+            "Gateway":         "",
             "IPv6":            [],
             "Speed_Mbps":      stat.speed if stat else 0,
             "MTU":             stat.mtu   if stat else 0,
@@ -149,13 +117,12 @@ def get_physical_nics():
             if addr.family == socket.AF_INET and not addr.address.startswith("127."):
                 iface["IPv4"]       = addr.address
                 iface["SubnetMask"] = addr.netmask
-                # DHCP lease 存在就標為 DHCP
-                lease = f"/var/lib/dhcp/dhclient.{name}.lease"
-                if os.path.exists(lease):
+                # DHCP 存在就標為 DHCP
+                if is_dhcp_ipcmd(name):
                     iface["AddressOrigin"] = "DHCP"
                 # 如果這個介面就是 default route，就填 Gateway
-                if name == gw_iface:
-                    iface["Gateway"] = default_gw
+                if name in getway_data:
+                    iface["Gateway"] = getway_data.get(name, "")
 
             # IPv6
             elif addr.family == socket.AF_INET6:
@@ -167,7 +134,6 @@ def get_physical_nics():
 
         interfaces.append(iface)
     return interfaces    
-
 #====================================================
 # get system uptime
 # ===================================================

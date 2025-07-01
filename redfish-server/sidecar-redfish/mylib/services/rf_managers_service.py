@@ -20,7 +20,7 @@ from mylib.utils.system_info import get_physical_nics
 from mylib.models.rf_ethernetinterfaces_model import RfEthernetInterfacesModel, RfEthernetInterfacesIdModel
 from mylib.models.rf_status_model import RfStatusModel
 from mylib.models.rf_manager_model import RfManagerModel
-from mylib.utils.system_setting import set_ntp
+from mylib.utils.system_setting import set_ntp, set_NetwrokInterface
 from mylib.common.proj_error import ProjRedfishError, ProjRedfishErrorCode
 from mylib.db.db_util import reset_to_defaults
 
@@ -63,6 +63,13 @@ class RfManagersService(BaseService):
         :return: str, 設定的值
         """
         return SettingModel().get_by_key(f"Managers.{key}").value
+    
+    def get_hostname(self):
+        """
+        取得主機名稱
+        :return: str, 主機名稱
+        """
+        return subprocess.run(["hostname"], capture_output=True, text=True).stdout.strip()
     # =================系統時間===================
     # 取得目前時區 IANA 格式 
     def get_current_timezone(self):
@@ -193,7 +200,7 @@ class RfManagersService(BaseService):
     # ================NetworkProtocol================
     def NetworkProtocol_service(self) -> dict:
         m = RfNetworkProtocolModel()
-        m.HostName = "TBD"
+        m.HostName = self.get_hostname()
         m.FQDN = "null"
         m.SNMP = rf_SNMP(**self.get_networkprotocol("SNMP"))
         
@@ -272,7 +279,7 @@ class RfManagersService(BaseService):
         m.Members_odata_count = len(net_data)
         for i in range(len(net_data)):
             s = {
-                "@odata.id": f"redfish/v1/Managers/CDU/EthernetInterfaces/{net_data[i]['Name']}"
+                "@odata.id": f"/redfish/v1/Managers/CDU/EthernetInterfaces/{net_data[i]['Name']}"
             }
             
             m.Members.append(s)
@@ -306,7 +313,7 @@ class RfManagersService(BaseService):
         Ipv4.AddressOrigin = data["AddressOrigin"]#"DHCP" #TBD
         Ipv4.Gateway = data["Gateway"]#"192.168.3.1" #TBD
         
-        m.IPv4Addresses = Ipv4 
+        m.IPv4Addresses = [Ipv4] 
         m.NameServers = data["NameServers"]#["8.8.8.8" ]#TBD
         
         status = {
@@ -315,6 +322,21 @@ class RfManagersService(BaseService):
         }
         m.Status = RfStatusModel.from_dict(status)
         return m.to_dict(), 200
+    
+    def patch_ethernetinterfaces(self, ethernet_interfaces_id: str, body: dict):
+        """
+        更新 EthernetInterfaces 的設定
+        :param ethernet_interfaces_id: str, 網路介面的 ID (e.g., "eth0")
+        :param body: dict, 包含要更新的屬性 (e.g., {"InterfaceEnabled": True})
+        """
+        interface_enabled = body.get("InterfaceEnabled", None)
+        # print("interface_enabled:", interface_enabled)
+        if interface_enabled is not None:
+            set_NetwrokInterface(ethernet_interfaces_id, interface_enabled)
+            return self.get_ethernetinterfaces_id(ethernet_interfaces_id), 200
+    
+        raise ProjRedfishError(code=ProjRedfishErrorCode.SERVICE_TEMPORARILY_UNAVAILABLE, 
+                message=f"Cannot found EthernetInterfaces {ethernet_interfaces_id} or InterfaceEnabled is not provided")    
     
 
     ##

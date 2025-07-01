@@ -5,32 +5,32 @@
             "Alert": false
         },
         "CoolantSupplyTemperatureSpare": {
-            "Warning": false,
-            "Alert": false
+            "Warning": true,
+            "Alert": true
         },
         "CoolantReturnTemperature": {
             "Warning": false,
             "Alert": false
         },
         "CoolantReturnTemperatureSpare": {
-            "Warning": false,
-            "Alert": false
+            "Warning": true,
+            "Alert": true
         },
         "CoolantSupplyPressure": {
             "Warning": false,
             "Alert": false
         },
         "CoolantSupplyPressureSpare": {
-            "Warning": false,
-            "Alert": false
+            "Warning": true,
+            "Alert": true
         },
         "CoolantReturnPressure": {
             "Warning": false,
             "Alert": false
         },
         "CoolantReturnPressureSpare": {
-            "Warning": false,
-            "Alert": false
+            "Warning": true,
+            "Alert": true
         },
         "FilterInletPressure": {
             "Warning": false,
@@ -74,16 +74,16 @@
         }
     },
     "devices": {
-        "Inv1Overload": false,
+        "Inv1Overload": true,
         "Inv2Overload": false,
         "Inv3Overload": false,
-        "FanOverload1": false,
+        "FanOverload1": true,
         "FanOverload2": false,
         "Inv1Error": false,
         "Inv2Error": false,
         "Inv3Error": false,
         "ATS": false,
-        "Inv1SpeedComm": false,
+        "Inv1SpeedComm": true,
         "Inv2SpeedComm": false,
         "Inv3SpeedComm": false,
         "CoolantFlowRateComm": false,
@@ -97,7 +97,7 @@
         "ATS2Comm": false,
         "InstantPowerConsumptionComm": false,
         "AverageCurrentComm": false,
-        "Fan1Comm": false,
+        "Fan1Comm": true,
         "Fan2Comm": false,
         "Fan3Comm": false,
         "Fan4Comm": false,
@@ -126,7 +126,7 @@
         "Power12v1": false,
         "Power12v2": false,
         "MainMcError": false,
-        "Fan1Error": false,
+        "Fan1Error": true,
         "Fan2Error": false,
         "Fan3Error": false,
         "Fan4Error": false,

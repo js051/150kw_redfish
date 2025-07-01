@@ -65,7 +65,7 @@ class RfEthernetInterfacesIdModel(RfResourceBaseModel):
     HostName: Optional[str] = Field(default=None)
     FQDN: Optional[str] = Field(default=None)
     
-    IPv4Addresses: Optional[_ipv4_addresses] = Field(default=None)
+    IPv4Addresses: Optional[List[_ipv4_addresses]] = Field(default=None)
     MaxIPv6StaticAddresses: Optional[int] = Field(default=None)
     # IPv6AddressPolicyTable: Optional[_ipv6addresspolicytable] = Field(default=None)
     # IPv6StaticAddresses: Optional[List[_ipv6_addresses]] = Field(default=None)

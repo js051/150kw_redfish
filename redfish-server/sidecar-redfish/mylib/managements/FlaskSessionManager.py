@@ -1,5 +1,6 @@
 # from flask import session
 from flask import abort
+from http import HTTPStatus
 from werkzeug.exceptions import HTTPException, BadRequest
 from mylib.auth.TokenProvider import TokenProvider
 
@@ -33,5 +34,5 @@ class FlaskSessionManager:
     def validate_privilege(cls, flask_session, required_privilege: str) -> bool:
         if not cls.has_privilege(flask_session, required_privilege):
             username = flask_session.get('username')
-            abort(403, f"Privilege '{required_privilege}' is required for user '{username}'")
+            abort(HTTPStatus.FORBIDDEN.value, f"Privilege '{required_privilege}' is required for user '{username}'")
 

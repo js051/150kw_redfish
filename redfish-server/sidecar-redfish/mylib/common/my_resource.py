@@ -25,5 +25,4 @@ class MyResource(Resource):
         return super().dispatch_request(*args, **kwargs)
 
     def _validate_request(self):
-        # abort(400, description="Invalid input")
         raise NotImplementedError

@@ -53,6 +53,7 @@ class MyJSONProvider(DefaultJSONProvider):
     """Provide JSON operations using Python’s built-in json library.
     @see https://flask.palletsprojects.com/en/stable/api/#flask.json.provider.DefaultJSONProvider
     @note: 高力想直接顯示utf8內容，不要轉成unicode編碼
+    @note: 必須搭配 jsonify()
     """
 
     def dumps(self, obj, **kwargs):
@@ -96,18 +97,7 @@ api = Api(
 )
 
 
-@app.route("/redfish", methods=["GET"], strict_slashes=False)
-def redfish_root():
-    root = {
-        "@odata.id": "/redfish",
-        "@odata.type": "#RedfishVersionCollection.RedfishVersionCollection",
-        "Name": "Redfish Service Versions",
-        "Members@odata.count": 1,
-        "Members": [
-            { "@odata.id": "/redfish/v1" }
-        ]
-    }
-    return root, 200
+
 
 
 @app.route("/debug", methods=["GET"])
@@ -118,7 +108,11 @@ def debug():
 # 引入資料夾中的所有路由模組
 from mylib.routers.root_router import root_ns
 
-api.add_namespace(root_ns, path="/redfish/v1")
+api.add_namespace(root_ns, path="/redfish")
+
+from mylib.routers.version_entry_router import version_entry_ns
+
+api.add_namespace(version_entry_ns, path="/redfish/v1")
 
 from mylib.routers.updateService_router import update_ns
 
@@ -128,7 +122,7 @@ from mylib.routers.Chassis_router import Chassis_ns
 
 api.add_namespace(Chassis_ns, path="/redfish/v1")
 
-from mylib.routers.mangers_router import managers_ns
+from mylib.routers.managers_router import managers_ns
 
 api.add_namespace(managers_ns, path="/redfish/v1")
 
@@ -152,7 +146,7 @@ from mylib.routers.CertificateService_router import CertificateService_ns
 
 api.add_namespace(CertificateService_ns, path="/redfish/v1")
 
-from mylib.routers.EventService_couter import EventService_ns
+from mylib.routers.EventService_router import EventService_ns
 
 api.add_namespace(EventService_ns, path="/redfish/v1")
 
@@ -280,11 +274,12 @@ def handle_http_exception(e):
     """
     Catch exception from Flask abort().
     """
-    return {
-        "code": e.code,
-        "name": e.name,
-        "message": e.description,
-    }, e.code
+    # return {
+    #     "code": e.code,
+    #     "name": e.name,
+    #     "message": e.description,
+    # }, e.code
+    return ProjError(e.code, e.description).to_redfish_error_dict(), e.code
 
 
 @api.errorhandler(ProjError)
@@ -313,7 +308,8 @@ def handle_exception(e):
     """
     Catch other exception
     """
-    return {"code": 500, "message": str(e)}, 500
+    http_status = HTTPStatus.INTERNAL_SERVER_ERROR.value
+    return ProjError(http_status, str(e)).to_redfish_error_dict(), http_status
 
 
 if __name__ == "__main__":
@@ -325,7 +321,8 @@ if __name__ == "__main__":
     key_pem_path = os.path.join(proj_root, "key.pem")
 
     # disable strict slashes
-    FlaskConfiger.disable_strict_slashes_for_all_urls(app, "/redfish/v1")
+    FlaskConfiger.disable_strict_slashes_for_all_urls(app, "/redfish")
+    
 
     # ssl_context=(憑證檔, 私鑰檔)
     redfish_port = int(os.environ.get("ITG_REDFISH_API_PORT", "5000"))

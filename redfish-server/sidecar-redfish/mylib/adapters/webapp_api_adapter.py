@@ -100,7 +100,6 @@ class WebAppAPIAdapter:
         elif reset_type == RfResetType.GracefulRestart.value:
             url = f"{self.host}/api/v1/reboot"
         else:
-            # abort(HTTPStatus.BAD_REQUEST, f"Invalid reset type: {reset_type}")
             raise ProjError(HTTPStatus.BAD_REQUEST.value, f"Invalid reset type: {reset_type}")
         response = self.session.get(url) # raise NewConnectionError if server is not running
         self._handle_response(response)

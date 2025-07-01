@@ -17,7 +17,8 @@ from mylib.models.rf_metric_report_definition_model import (
     RfMetricReportDefinitionModel,
     RfReportActionsEnum,
     RfMetric,
-    RfMetricReportDefinitionType
+    RfMetricReportDefinitionType,
+    RfReportUpdatesEnum,
 )
 
 
@@ -274,5 +275,6 @@ class RfTelemetryService(BaseService):
             m.ReportActions = [
                 RfReportActionsEnum.LogToMetricReportsCollection
             ]
+            m.ReportUpdates = RfReportUpdatesEnum.AppendWrapsWhenFull
             
             return m.to_dict()
