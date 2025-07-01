@@ -1,197 +1,249 @@
 # .github/workflows/release.yaml
 #
-# 功能：為 sidecar-redfish 建立「只含改動程式與 .whl」的增量包，
-#       傳送至 192.168.3.137（或覆寫指定主機）。
+# 功能：為專案建立「增量」或「全量」更新包。
+#       此版本已改用 Python 腳本 (create_package.py) 進行打包，並增加了自動化驗證流程。
+#       打包後可選擇性地傳送至遠端主機（例如 192.168.3.137）。
+#
 # 觸發：
-#   1. main 分支 push
-#   2. Pull Request 合併到 main
-#   3. 手動 workflow_dispatch（支援 dry_run / debug / 指定版本區間）
+#   1. Pull Request 關閉並合併至 main 分支時。
+#   2. 手動觸發 (workflow_dispatch)，支援 dry_run / debug / 指定版本區間。
+#
 # 版本推算規則：
 #   ─ 手動 new_tag 是 tag  → 舊版 = new_tag 的上一個 tag
 #   ─ 手動 new_tag 是 hash → 舊版 = new_tag 之前最近的 tag
 #   ─ 事件自動（或 new_tag 空） → 新版 = HEAD，舊版 = 最近 tag
 #   ─ 手動同時給 previous_tag → 直接用指定區間
 #
-# 需先在 repo 設定：
-#   • Secrets  : REMOTE_SSH_PASSWORD
-#   • Variables: REMOTE_HOST_IP   (預設 192.168.3.137)
-#
-name: Build Incremental Package & Deploy
+# 部署設定：
+#   • Secrets: REMOTE_SSH_PASSWORD  (密碼仍建議使用 Secrets 管理)
+#   • 主機與路徑: IP、使用者、目錄等設定已直接在此檔案的 "Define Environment Variables" 步驟中指定，
+#                 無需在 GitHub 頁面設定 Variables，方便在無權限環境下使用。
+name: Build, Verify & Deploy Incremental Package
 
 on:
-  # pull_request:
-  #   types: [closed]
-  #   branches: [main]
+  pull_request:
+    types: [closed]
+    branches: [main]
   workflow_dispatch:
     inputs:
+      full_package:
+        description: "true -> 建立一個包含所有檔案的『全量包』，而非增量包"
+        type: boolean
+        default: false
       dry_run:
-        description: "true → 只列印指令，不連線"
+        description: "true -> 只建構和驗證，不執行遠端部署"
         type: boolean
         default: false
       debug:
-        description: "true → set -x 逐行顯示 shell"
+        description: "true -> 啟用 'set -x' 模式"
         type: boolean
         default: false
       override_host:
-        description: "臨時指定遠端主機 (空=用 vars.REMOTE_HOST_IP)"
+        description: "臨時覆寫遠端主機 IP (留空則使用預設值)"
         type: string
         default: ""
       new_tag:
-        description: "新版本 (tag 或 commit hash，空=HEAD)"
+        description: "新版本 (tag 或 commit hash，留空則為 HEAD)"
         type: string
         default: ""
       previous_tag:
-        description: "舊版本 tag (空=自動推算或第一個 commit)"
+        description: "舊版本 (tag 或 commit hash，留空則自動推算)"
         type: string
         default: ""
 
 jobs:
+  # --- JOB 1: Build the package ---
   build:
     if: github.event.pull_request == null || github.event.pull_request.merged == true
     runs-on: ubuntu-22.04
+    outputs:
+      package_name: ${{ steps.pkg.outputs.pkg_name }}
 
     steps:
-      # ------------- 0. Basic tools -------------
-      - name: Install sshpass & tree
+      - name: Install prerequisite tools
         run: sudo apt-get update && sudo apt-get install -y sshpass tree
 
-      # ------------- 1. Fetch full history -------------
-      - name: Checkout repository (full)
+      - name: Checkout repository (full history)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # ------------- 2. Python (for pip download) -------------
       - name: Setup Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      # ------------- 3. Shared ENV -------------
-      - name: Define ENV
+      - name: Install script dependencies
+        run: pip install pathspec
+
+      - name: Define Environment Variables
         id: envset
         env:
-          HOST_FROM_VAR: ${{ vars.REMOTE_HOST_IP }} # 可能為空
-          PASS_FROM_SEC: ${{ secrets.REMOTE_SSH_PASSWORD }} # 可能為空
+          PASS_FROM_SEC: ${{ secrets.REMOTE_SSH_PASSWORD }}
         run: |
-          # 1) remote_host： → dispatch override → repo variable → 192.168.3.137
+          # --- Remote Host Logic ---
           if [ -n "${{ inputs.override_host }}" ]; then
             REMOTE_HOST='${{ inputs.override_host }}'
-          elif [ -n "$HOST_FROM_VAR" ]; then
-            REMOTE_HOST="$HOST_FROM_VAR"
           else
+            # Default host IP
             REMOTE_HOST="itgsystem3.asuscomm.com"
           fi
+          
+          # --- Hardcoded Paths for 'jason' user ---
+          # This section is tailored for the specific user environment.
+          REMOTE_USER="user"
+          REMOTE_DIR="/home/user/tmp/users/jason"
 
-          # 2) ssh_password：Secret → 0000
-          if [ -n "$PASS_FROM_SEC" ]; then
-            SSH_PASSWORD="$PASS_FROM_SEC"
-          else
-            SSH_PASSWORD="0000"
-          fi
-          echo "DRY=${{ inputs.dry_run }}"     >> $GITHUB_ENV
-          echo "DEBUG_FLG=${{ inputs.debug }}" >> $GITHUB_ENV
-          echo "REMOTE_HOST=$REMOTE_HOST"      >> $GITHUB_ENV
-          echo "SSH_PASSWORD=$SSH_PASSWORD"    >> $GITHUB_ENV
-          echo "REMOTE_USER=user"              >> $GITHUB_ENV
-          echo "REMOTE_DIR=/home/user/tmp/users/jason" >> $GITHUB_ENV
+          echo "DRY_RUN=${{ inputs.dry_run }}" >> $GITHUB_ENV
+          echo "DEBUG_FLAG=${{ inputs.debug }}" >> $GITHUB_ENV
+          echo "REMOTE_HOST=$REMOTE_HOST" >> $GITHUB_ENV
+          echo "SSH_PASSWORD=${PASS_FROM_SEC:-'0000'}" >> $GITHUB_ENV
+          echo "REMOTE_USER=$REMOTE_USER" >> $GITHUB_ENV
+          echo "REMOTE_DIR=$REMOTE_DIR" >> $GITHUB_ENV
 
-      # ------------- 4. Enable set -x for all subsequent steps when debug=true -------------
-      - name: Enable shell trace
-        if: env.DEBUG_FLG == 'true'
-        run: |
-          : "${BASH_ENV:=$HOME/.bash_env}"
-          mkdir -p "$(dirname "$BASH_ENV")"
-          echo 'set -x' >> "$BASH_ENV"
+      - name: Enable shell trace (if debug)
+        if: env.DEBUG_FLAG == 'true'
+        run: echo 'set -x' >> $GITHUB_ENV
 
-      # ------------- 5. Determine version range (handles no-tag edge cases) -------------
-      - id: ver
-        name: Select version range
+      - name: Determine version range
+        id: ver
+        if: inputs.full_package != 'true'
+        # This logic is robust and remains unchanged.
         run: |
           set -e
-
-          IN_NEW="${{ inputs.new_tag }}"
-          IN_OLD="${{ inputs.previous_tag }}"
-
-          # -------- Determine NEW_TAG --------
-          if [ -n "$IN_NEW" ]; then
-            NEW="$IN_NEW"
+          NEW_TAG="${{ inputs.new_tag || 'HEAD' }}"
+          PREVIOUS_TAG="${{ inputs.previous_tag }}"
+          if [ -n "$PREVIOUS_TAG" ]; then
+            OLD_TAG="$PREVIOUS_TAG"
           else
-            NEW="HEAD"
-          fi
-
-          # -------- Determine OLD_TAG --------
-          if [ -n "$IN_OLD" ]; then
-            OLD="$IN_OLD"
-          else
-            # Try to get the latest tag before NEW_TAG
-            LATEST_TAG=$(git describe --tags --abbrev=0 "$NEW" 2>/dev/null || true)
-
-            if [ -n "$LATEST_TAG" ]; then
-              if git describe --exact-match --tags "$NEW" >/dev/null 2>&1; then
-                OLD=$(git describe --tags --abbrev=0 "${NEW}^")
-              else
-                OLD="$LATEST_TAG"
-              fi
+            if git describe --exact-match --tags "$NEW_TAG" &>/dev/null; then
+              OLD_TAG=$(git describe --tags --abbrev=0 "${NEW_TAG}^" 2>/dev/null)
             else
-              # Repository has no tags: use the first commit
-              echo "Repository has no tag; packaging from first commit"
-              OLD=$(git rev-list --max-parents=0 HEAD)
+              OLD_TAG=$(git describe --tags --abbrev=0 "$NEW_TAG" 2>/dev/null)
             fi
           fi
-
-          if [ -z "$OLD" ]; then
-            echo "Unable to determine old version (OLD_TAG)"; exit 1
+          if [ -z "$OLD_TAG" ]; then
+            echo "No previous tag found. Using the first commit as the old version."
+            OLD_TAG=$(git rev-list --max-parents=0 HEAD)
           fi
-
-          echo "old_tag=$OLD" >> "$GITHUB_OUTPUT"
-          echo "new_tag=$NEW" >> "$GITHUB_OUTPUT"
-
+          echo "old_tag=$OLD_TAG" >> "$GITHUB_OUTPUT"
+          echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
           echo "---------------------------------------------"
-          echo "Incremental range: $OLD  →  $NEW"
+          echo "Packaging Range: $OLD_TAG  →  $NEW_TAG"
           echo "---------------------------------------------"
-
-      # ------------- 6. Build incremental package (on runner) -------------
-      - id: pkg
-        name: Build incremental package
+      
+      - name: Build Package
+        id: pkg
         run: |
-          # Assuming your script is in the repo root; modify the path if not
-          SCRIPT_PATH="./create_update_package.sh"
+          # --- Auto-detect script path for portability ---
+          if ! SCRIPT_PATH=$(find . -type f -name 'create_package.py' -print -quit); then
+            echo "Error: Packaging script 'create_package.py' not found."
+            exit 1
+          fi
+          echo "Found Python packaging script at: $SCRIPT_PATH"
 
-          if [ ! -f "$SCRIPT_PATH" ]; then
-            SCRIPT_PATH=$(find . -type f -name 'create_update_package.sh' -print -quit)
+          # --- Build command based on package type ---
+          if [[ "${{ inputs.full_package }}" == "true" ]]; then
+            echo "--- Building FULL package ---"
+            # For a full package, we only need the new_tag. old_tag is ignored.
+            NEW_VERSION="${{ inputs.new_tag || 'HEAD' }}"
+            python3 "$SCRIPT_PATH" "ignored" "$NEW_VERSION" --full
+          else
+            echo "--- Building INCREMENTAL package ---"
+            python3 "$SCRIPT_PATH" "${{ steps.ver.outputs.old_tag }}" "${{ steps.ver.outputs.new_tag }}"
           fi
 
-          chmod +x "$SCRIPT_PATH"
-          "$SCRIPT_PATH" "${{ steps.ver.outputs.old_tag }}" "${{ steps.ver.outputs.new_tag }}"
-
-          OLD_TAG_SAFE=$(echo "${{ steps.ver.outputs.old_tag }}" | sed 's/\//-/g')
-          NEW_TAG_SAFE=$(echo "${{ steps.ver.outputs.new_tag }}" | sed 's/\//-/g')
-
-          # The packaging script already generates the correct filename; locate it with ls
-          PKG_NAME=$(ls ITG_Update_*.tar.gz)
-
+          # The rest of the script finds the created package
+          PKG_NAME=$(ls -t ITG_*.tar.gz | head -n 1)
+          if [ -z "$PKG_NAME" ]; then
+            echo "Error: No package file was created."
+            exit 1
+          fi
           echo "pkg_name=$PKG_NAME" >> $GITHUB_OUTPUT
           echo "Generated file: $PKG_NAME"
           ls -lh "$PKG_NAME"
 
-      # ------------- 7. Upload to remote (skipped when dry-run) -------------
       - name: Upload package to remote
-        if: env.DRY != 'true'
+        if: env.DRY_RUN != 'true'
         env:
           SSH_PASSWORD: ${{ env.SSH_PASSWORD }}
         run: |
-          PKG=${{ steps.pkg.outputs.pkg_name }}
+          PKG_NAME=${{ steps.pkg.outputs.pkg_name }}
           sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
             $REMOTE_USER@$REMOTE_HOST "mkdir -p $REMOTE_DIR"
           sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-            "$PKG" $REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/
+            "$PKG_NAME" $REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/
 
-      # ------------- 8. Save to GitHub Artifact -------------
-      - name: Upload artifact
-        if: env.DRY != 'true'
+      - name: Store package as artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.pkg.outputs.pkg_name }}
           path: ${{ steps.pkg.outputs.pkg_name }}
           retention-days: 7
+
+  # --- JOB 2: Verify the created package ---
+  # This job does not depend on any settings and is highly recommended.
+  verify:
+    needs: build
+    if: success()
+    runs-on: ubuntu-22.04
+    
+    steps:
+      - name: Download package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.package_name }}
+          path: ./package_contents
+
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Extract package and find modules
+        id: extract
+        run: |
+          PKG_NAME="${{ needs.build.outputs.package_name }}"
+          tar -xvf "./package_contents/$PKG_NAME" -C ./package_contents
+          echo "Extracted contents:"
+          ls -R ./package_contents
+          MODULE_DIRS=$(find ./package_contents/app -maxdepth 2 -name "requirements.txt" -exec dirname {} \; | xargs -r)
+          echo "module_dirs=${MODULE_DIRS}" >> $GITHUB_OUTPUT
+
+      - name: Verify dependency integrity (offline dry-run install)
+        if: steps.extract.outputs.module_dirs != ''
+        run: |
+          echo "Verifying dependency integrity for each module..."
+          for APP_DIR in ${{ steps.extract.outputs.module_dirs }}; do
+            MODULE_PATH=$(realpath --relative-to=./package_contents/app "$APP_DIR")
+            REQ_FILE="$APP_DIR/requirements.txt"
+            WHEELS_DIR="./package_contents/wheels/$MODULE_PATH"
+            echo "--- Checking module: $MODULE_PATH ---"
+            if [ -d "$WHEELS_DIR" ]; then
+              python3 -m pip install --dry-run --no-index --find-links="$WHEELS_DIR" -r "$REQ_FILE"
+              echo "--- Check for $MODULE_PATH PASSED ---"
+            else
+              echo "No wheels directory found for $MODULE_PATH, skipping check."
+            fi
+          done
+
+      - name: Generate checksum file for wheels
+        id: checksum
+        run: |
+          echo "Generating SHA256 checksums for wheels..."
+          WHEELS_DIR="./package_contents/wheels"
+          CHECKSUM_FILE="./package_contents/sha256sum-wheels.txt"
+          if [ -d "$WHEELS_DIR" ] && [ -n "$(find "$WHEELS_DIR" -type f -name '*.whl')" ]; then
+            find "$WHEELS_DIR" -type f -name '*.whl' -print0 | sort -z | xargs -0 sha256sum > "$CHECKSUM_FILE"
+            echo "Checksum file created:"; cat "$CHECKSUM_FILE"
+            echo "has_checksum=true" >> $GITHUB_OUTPUT
+          else
+            echo "No wheels found, skipping checksum generation."; echo "has_checksum=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Store verification results as artifact
+        if: steps.checksum.outputs.has_checksum == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-results-${{ needs.build.outputs.package_name }}
+          path: ./package_contents/sha256sum-wheels.txt

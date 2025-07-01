@@ -18,8 +18,7 @@ tests/
 *.pyc
 __pycache__/
 
-# 腳本和臨時檔案
-*.sh
+# 臨時檔案
 *.tmp
 
 # 文件
