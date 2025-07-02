@@ -9,10 +9,10 @@ from dotenv import load_dotenv
 proj_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(proj_root)
 
-env_filename = ".env-test"
-print(f"Testing with {env_filename}: {os.path.join(proj_root, env_filename)}")
-load_dotenv(dotenv_path=f"{os.path.join(proj_root, env_filename)}", verbose=True, override=True)
-os.environ['IS_TESTING_MODE'] = 'True'
+# env_filename = ".env-test"
+# print(f"Testing with {env_filename}: {os.path.join(proj_root, env_filename)}")
+# load_dotenv(dotenv_path=f"{os.path.join(proj_root, env_filename)}", verbose=True, override=True)
+# os.environ['IS_TESTING_MODE'] = 'True'
 
 import base64
 from typing import List, Dict, Any
@@ -20,20 +20,43 @@ import pytest
 import logging
 from enum import Enum
 from pytest_metadata.plugin import metadata_key
-from app import app
+
 
 # 讓 logging 輸出到 stdout，pytest-html 才能接收到docstring
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-
-class AssertType(str, Enum):
-    CONSTANT     = "constant" # assert的值是常數(ex: redfish schema version)
-    CONFIGURABLE = "configurable" # assert的值是可配置的(ex: 網路設定存於sqlite)
-    DYNAMIC      = "dynamic" # assert的值是動態的(ex: sensor的讀值)
-    LENGTH_GT_0  = "length_gt_0" # 陣列的長度要大於0 (很多`Members`會需要這樣測)
     
 
+def pytest_addoption(parser):
+    """
+    Parse command line options for config.getoption() use.
+    ex: pytest test.py --env=test
+    """
+    print(f"pytest parser addoption: --env-file")
+    parser.addoption("--env-file", action="store", default="")
+    print(f"pytest parser addoption: --env")
+    parser.addoption("--env", action="store", default="test") # ex: "test-macos"
+
 def pytest_configure(config):
-    """會顯示在 html report 的 Environment 部分"""
+    """在測試開始前讀取並設置環境變數"""
+
+    env_filename = config.getoption("--env-file")
+    env = config.getoption("--env") # ex: "test-macos"
+    env_filepath = None
+    if env_filename:
+        env_filepath = os.path.join(proj_root, env_filename)
+    elif env:
+        env_filename = f".env-{env}" if env else ".env-test"
+        env_filepath = os.path.join(proj_root, env_filename)
+    else:
+        env_filename = ".env-test"
+        env_filepath = os.path.join(proj_root, env_filename)
+    print(f"Testing with {env_filepath}")
+    load_dotenv(dotenv_path=f"{env_filepath}", verbose=True, override=True)
+    os.environ['IS_TESTING_MODE'] = 'True'
+
+    """
+    會顯示在 html report 的 Environment 部分
+    """
     for key, value in os.environ.items():
         if key.startswith("ITG_") or key.startswith("REDFISH_"):
             logging.info(f"{key}: {value}")
@@ -41,11 +64,6 @@ def pytest_configure(config):
             config.stash[metadata_key][key] = value
 
 
-@pytest.fixture
-def client():
-    app.config['TESTING'] = True
-    with app.test_client() as client:
-        yield client
 
 @pytest.fixture
 def basic_auth_header():
@@ -98,7 +116,22 @@ def print_response_details(response, **kwargs):
     if kwargs:
         for key, value in kwargs.items():
             print(f"  * {key}: {value}")
-        
+
+
+@pytest.fixture
+def client():
+    from app import app
+    app.config['TESTING'] = True
+    with app.test_client() as client:
+        yield client
+
+
+class AssertType(str, Enum):
+    CONSTANT     = "constant" # assert的值是常數(ex: redfish schema version)
+    CONFIGURABLE = "configurable" # assert的值是可配置的(ex: 網路設定存於sqlite)
+    DYNAMIC      = "dynamic" # assert的值是動態的(ex: sensor的讀值)
+    LENGTH_GT_0  = "length_gt_0" # 陣列的長度要大於0 (很多`Members`會需要這樣測)
+
 class TestcaseFinder:
     """
     很多testcase是定義成如下的json:

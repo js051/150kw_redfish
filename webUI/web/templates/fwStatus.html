@@ -162,8 +162,7 @@ styles %}
                 // $("#Redfish_API").text(FW_Info_Version["Redfish_API"]);
                 // $("#Redfish_Server").text(FW_Info_Version["Redfish_Server"]);
                 // $("#Modbus_Server").text(FW_Info_Version["Modbus_Server"]);
-                $("#PLC").text(FW_Info_Version["PLC"]);
-
+                $("#PLC").text(`0${plc_version}`);
 
             },
             error: function (error) {

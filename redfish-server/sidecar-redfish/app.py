@@ -28,6 +28,7 @@ import load_env
 from flask import Flask, request, Response, jsonify, make_response
 from flask_restx import Api
 import sys, os
+import json
 from werkzeug.exceptions import HTTPException
 from http import HTTPStatus
 from mylib.db.extensions import ext_engine
@@ -37,8 +38,7 @@ from mylib.auth.rf_auth import check_basic_auth, check_session_auth, AuthStatus
 from mylib.services.debug_service import DebugService
 from mylib.managements.FlaskConfiger import FlaskConfiger
 from flask.json.provider import DefaultJSONProvider
-import json
-
+from load_env import AppPathInitializer
 
 class CustomApi(Api):
     def handle_validation_error(self, error, bundle_errors):
@@ -69,11 +69,11 @@ class MyJSONProvider(DefaultJSONProvider):
 
 app = Flask(__name__)
 
-db_filename_suffix = "-test" if os.getenv("env") == "test" else ""
-db_filename = f"mydb{db_filename_suffix}.sqlite"
+path_info = AppPathInitializer().initialize()
+db_filepath = path_info["db_filepath"]
 
 # initialize sqlalchemy
-app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_filename}"
+app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_filepath}"
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_size": 5,
     "max_overflow": 1,

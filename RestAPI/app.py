@@ -2430,7 +2430,13 @@ class SensorsSummary(Resource):
             sensor_value = sensor_data["value"]
             leak_broken = sensor_data["error"]["leakage1_broken"]
             leak_leak = sensor_data["error"]["leakage1_leak"]
-            
+
+            sensor_rack = sensor_data["rack"]
+            rack_leakage1_broken = sensor_rack["rack_leakage1_broken"]
+            rack_leakage1_leak = sensor_rack["rack_leakage1_leak"]
+            rack_leakage2_broken = sensor_rack["rack_leakage2_broken"]
+            rack_leakage2_leak = sensor_rack["rack_leakage2_leak"]
+                        
             for key, value in thermal_equipment.items():
                 raw = sensor_value.get(key, 0)
                 # sensor_reading = round(raw, 2) if key != "clnt_flow" else round(raw)
@@ -2448,6 +2454,8 @@ class SensorsSummary(Resource):
                     }
                     
             rep["leak_detector"] = leak_judge(leak_broken, leak_leak)
+            rep["rack_leak_detector_1"] = leak_judge(rack_leakage1_broken, rack_leakage1_leak)
+            rep["rack_leak_detector_2"] = leak_judge(rack_leakage2_broken, rack_leakage2_leak)
             rep["Filter_run_time"] = read_ctr_data()["text"]["Filter_run_time"]
                             
         except Exception as e:

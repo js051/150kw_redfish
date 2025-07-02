@@ -4,7 +4,7 @@
 import subprocess, json
 import requests
 import ipaddress
-from flask import jsonify
+from flask import jsonify, Response
 from mylib.services.base_service import BaseService
 from mylib.models.rf_networkprotocol_model import RfNetworkProtocolModel
 from mylib.models.rf_snmp_model import RfSnmpModel
@@ -16,6 +16,7 @@ from mylib.models.rf_event_service_model import RfEventServiceModel, RfEventSubs
 from mylib.models.rf_status_model import RfStatusModel
 from mylib.services.rf_managers_service import RfManagersService
 from mylib.models.setting_model import SettingModel
+from mylib.utils.ServerSentEvent import event_stream
 
 event_setting = {
     "ServiceEnabled": True,
@@ -183,3 +184,20 @@ class RfEventService(BaseService):
             return "error: Service not enabled", 400   
         
         return self.get_subscriptions_id(subscription_id)
+    
+    #==========================================
+    # ServerSentEvent
+    #==========================================   
+    def subscriptions_SSE(self): 
+        """
+        1.先判斷EventService是否有啟動
+        2.取得要過濾的事件
+        3.設定SSE發送事件
+        """
+        if self.get_ServiceEnabled() is not True:
+            event_stream(Enabled=False)
+            return {"error": "EventService not Enabled"}
+    
+        # 過濾條件
+        filters = {}
+        return Response(event_stream(True, filters), mimetype="text/event-stream")    

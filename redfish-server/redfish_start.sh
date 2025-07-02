@@ -27,7 +27,7 @@ Description=Redfish Mockup Service
 After=network.target
 
 [Service]
-User=user
+User=
 Group=user
 WorkingDirectory=$TARGET_DIR
 Environment="PATH=$VENV_PATH/bin"

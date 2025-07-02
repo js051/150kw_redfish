@@ -149,3 +149,8 @@ class Subscriptions(MyBaseEventService):
     def patch(self, Subscriptions_id):
         body = request.get_json(force=True)
         return RfEventService().patch_subscriptions_id(Subscriptions_id, body)
+    
+# @EventService_ns.route("/EventService/SSE")   
+# class ServerSentEvent(MyBaseEventService):
+#     def get(self):
+#         return RfEventService().subscriptions_SSE()    

@@ -48,7 +48,7 @@ class RfLeakDetectionIdModel(RfResourceBaseModel):
         self.Description = f"Leak Detector {leak_detector_id} for CDU {cdu_id}"
         
         self.LeakDetectorType = "Moisture"
-        self.Location = RfLocationModel(**hardware_info["leak_detector"][leak_detector_id]["Location"])
+        self.Location = RfLocationModel(**hardware_info["leak_detectors"][leak_detector_id]["Location"])
 
         
 '''

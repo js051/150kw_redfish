@@ -2062,10 +2062,10 @@ styles %}
                     if (currJSON !== lastVersionJSON) {
                         change_version(currentVersion);
                         lastVersionJSON = currJSON;
+                        updateRowStripes();
                     }
                     current_data(currentData);
                     change_status_light(currentData);
-                    updateRowStripes();
                 } catch (xhr) {
                     console.error(
                         `AJAX request failed with status: ${xhr.status} - ${xhr.statusText}`

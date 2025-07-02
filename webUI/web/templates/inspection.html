@@ -1169,6 +1169,18 @@ styles %}
             "Error Status Inspection Result ▼"
         );
 
+        $(".title").each(function () {
+            $(this).addClass("collapsed");
+            $(this).attr("data-before", $(this).attr("data-label") + " ▲");
+        });
+
+        function expandAllTitles() {
+            $(".title").each(function () {
+                $(this).removeClass("collapsed");
+                $(this).attr("data-before", $(this).attr("data-label") + " ▼");
+            });
+        }
+        
         let userType = "{{user}}";
         let time = "";
 
@@ -1359,6 +1371,8 @@ styles %}
                 // 等待 base.html 資料初始化
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
+            expandAllTitles();
+            let lastVersionJSON = null;
             while (true) {
                 try {
                     // const data = await $.ajax({
@@ -1368,8 +1382,13 @@ styles %}
                     //     dataType: "json",
                     // });
                     const data = window.sharedData.version;
+                    const currentVersion = window.sharedData.version;
+                    const currJSON = JSON.stringify(currentVersion);
+                    if (currJSON !== lastVersionJSON) {
                     check_version(data);
+                        lastVersionJSON = currJSON;
                     updateRowStripes();
+                    }
                 } catch (xhr) {
                     console.error(
                         `AJAX request failed with status: ${xhr.status} - ${xhr.statusText}`
@@ -1386,6 +1405,7 @@ styles %}
                 $(".Fan_com").show();
                 $(".Fan8_version").hide();
             } else {
+                $(".Fan8_version").show();
                 $(".Fan_com").hide();
             }
             if (ver_switch["coolant_quality_meter_switch"] === true) {

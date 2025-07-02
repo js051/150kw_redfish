@@ -1254,7 +1254,7 @@ styles %}
         jQuery(".sensor").attr("data-before", "Sensor Value ▼");
         jQuery(".rack_setting").attr("data-before", "Rack Information ▼");
 
-        /*$(".title").each(function () {
+        $(".title").each(function () {
             $(this).addClass("collapsed");
             $(this).attr("data-before", $(this).attr("data-label") + " ▲");
         });
@@ -1263,7 +1263,7 @@ styles %}
                 $(this).removeClass("collapsed");
                 $(this).attr("data-before", $(this).attr("data-label") + " ▼");
             });
-        }*/
+        }
 
         function current_data(data) {
             console.log(data);
@@ -1292,6 +1292,7 @@ styles %}
                                 "fan_freq7",
                                 "fan_freq8"]
                             if (test_group.includes(key)) {
+                                $("#" + key).text(value.toFixed(0));
                                 continue;
                             }
                         }
@@ -2023,7 +2024,8 @@ styles %}
                 // 等待 base.html 資料初始化
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
-            //expandAllTitles();
+            expandAllTitles();
+            let lastVersionJSON = null;
             while (true) {
                 try {
                     // const data = await $.ajax({
@@ -2044,10 +2046,14 @@ styles %}
                     //透過全域抓取base.html的數值
                     const currentData = window.sharedData.data;
                     const currentVersion = window.sharedData.version;
-                    change_version(currentVersion);
+                    const currJSON = JSON.stringify(currentVersion);
+                    if (currJSON !== lastVersionJSON) {
+                        change_version(currentVersion);
+                        lastVersionJSON = currJSON;
+                        updateRowStripes();
+                    }
                     current_data(currentData);
                     change_status_light(currentData);
-                    updateRowStripes();
                 } catch (xhr) {
                     console.error(
                         `AJAX request failed with status: ${xhr.status} - ${xhr.statusText}`

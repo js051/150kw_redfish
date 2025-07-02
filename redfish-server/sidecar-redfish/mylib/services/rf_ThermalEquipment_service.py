@@ -122,10 +122,7 @@ class RfThermalEquipmentService(BaseService):
             {
                 "GroupName": "LeakDetectorGroup1",
                 "Detectors": [
-                    {
-                        "DataSourceUri":   "/redfish/v1/ThermalEquipment/CDUs/1/LeakDetection/LeakDetectors/1",
-                        # "DetectorState":   "OK"
-                    }
+                    {"DataSourceUri":   "/redfish/v1/ThermalEquipment/CDUs/1/LeakDetection/LeakDetectors/1",}
                 ],
                 # 必要
                 "HumidityPercent": {
@@ -136,12 +133,12 @@ class RfThermalEquipmentService(BaseService):
                 #     "State": "Enabled",
                 #     "Health": "OK"
                 # },
-                "Status": self._read_leak_detector_status()
+                "Status": self._read_leak_detector_status("leak_detector")
             }
         ]
         
         m = RfLeakDetectionModel(cdu_id=cdu_id)
-        m.Status = self._read_leak_detector_status()
+        m.Status = self._read_leak_detector_status("leak_detector")
         m.LeakDetectorGroups = leakgroup
         m.LeakDetectors = {
             "@odata.id": "/redfish/v1/ThermalEquipment/CDUs/1/LeakDetection/LeakDetectors"
@@ -173,8 +170,15 @@ class RfThermalEquipmentService(BaseService):
     def fetch_CDUs_LeakDetection_LeakDetectors_id(self, cdu_id: str, leak_detector_id: str) -> dict:
         m = RfLeakDetectionIdModel(cdu_id=cdu_id, leak_detector_id=leak_detector_id)
         
+        leak_mapping = {
+            "Device1" : "leak_detector",
+            "Rack1" : "rack_leak_detector_1",
+            "Rack2" : "rack_leak_detector_2",
+        }
+        
+        leak_mapping_result = leak_mapping.get(leak_detector_id, "leak_detector")
         # status
-        m.Status = self._read_leak_detector_status()
+        m.Status = self._read_leak_detector_status(leak_mapping_result)
         m.DetectorState = m.Status.Health
         return m.to_dict()
 
@@ -252,7 +256,7 @@ class RfThermalEquipmentService(BaseService):
             reading_info["Reading"] = 0.0
         return reading_info["Reading"]
     
-    def _read_leak_detector_status(self) -> RfStatusModel:
+    def _read_leak_detector_status(self, leak_detector_id: str) -> RfStatusModel:
         """
         目前的設計：UI會讀web app的/get_data，js判斷如下
             if (data["error"]["leakage1_broken"]) {
@@ -270,11 +274,12 @@ class RfThermalEquipmentService(BaseService):
         以上直接去讀 {project_root}/webUI/web/json/sensor_data.json的`error`欄位
         (註) 20250505 如果未來webUI和redfish佈署在不同機器，直接讀json檔是不通的。
         (註) 20250509 改統一由RestAPI取資料
+        (註) 20250701 改使用leak_detector_id指定取得檢測器的狀態
         """
         ret_status_model = None
         try:
             summary_json = self._read_components_thermal_equipment_summary_from_cache()
-            leak_detector_info = summary_json["leak_detector"]
+            leak_detector_info = summary_json[leak_detector_id]
             ret_status_model = RfStatusModel.from_dict(leak_detector_info["status"])
         except Exception as e:
             print(e)

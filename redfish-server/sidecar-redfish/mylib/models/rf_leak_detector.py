@@ -13,10 +13,11 @@ from pydantic import (
 )
 from typing_extensions import Self
 
-from mylib.models.rf_base_model import RfResourceBaseModel
+from mylib.models.rf_base_model import RfResourceBaseModel, RfResourceCollectionBaseModel
 from mylib.models.rf_status_model import RfStatusModel, RfStatusHealth, RfStatusState
+from load_env import hardware_info
 
-class RfLeakDetectorModel(RfResourceBaseModel):
+class RfLeakDetectorModel(RfResourceCollectionBaseModel):
     # Id: str = Field(default="1")
     # Status: RfStatusModel = Field(default=RfStatusModel())
     
@@ -30,19 +31,24 @@ class RfLeakDetectorModel(RfResourceBaseModel):
         Example:
         {
             "@odata.id": "/redfish/v1/ThermalEquipment/CDUs/{cdu_id}/LeakDetection/LeakDetectors",
-            "@odata.type": "#LeakDetectors.v1_6_0.LeakDetectors",
-            "Id": f"{cdu_id}",
+            "@odata.type": "#LeakDetectorCollection.LeakDetectorCollection",
             "Name": "LeakDetectors",
-            "Status": {
-                "State": "Enabled",
-                "Health": "Critical"
-            }
+            "Members@odata.count": 1,
+            "Members": [{}]
         }
         """
         super().__init__(**kwargs)
         self.odata_id = f"/redfish/v1/ThermalEquipment/CDUs/{cdu_id}/LeakDetection/LeakDetectors"
         self.odata_type = "#LeakDetectorCollection.LeakDetectorCollection"
         self.Name = "LeakDetectors"
+        
+        self.Members_odata_count = len(hardware_info.get("leak_detectors", {}))
+        self.Members = []
+        for leak_detector_id in hardware_info.get("leak_detectors", {}).keys():
+            member = {
+                "@odata.id": f"/redfish/v1/ThermalEquipment/CDUs/{cdu_id}/LeakDetection/LeakDetectors/{leak_detector_id}"
+            }
+            self.Members.append(member)
         # self.Id = cdu_id
 
 

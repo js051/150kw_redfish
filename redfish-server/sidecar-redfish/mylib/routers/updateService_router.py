@@ -100,7 +100,7 @@ class FirmwareInventoryControlUnit_1(Resource):
             # "ReleaseDate": "2025-02-21T06:02:08Z", # TBD
             # 是否可更新
             "Updateable": False,    
-            "Version": "0" + str(load_raw_from_api(f"{CDU_BASE}/api/v1/cdu/components/display/version")["version"]["PLC"]),
+            "Version": str(load_raw_from_api(f"{CDU_BASE}/api/v1/cdu/components/display/version")["version"]["PLC"]),
             "SoftwareId": "PLC-VERSION",
             "Oem": {}
         }

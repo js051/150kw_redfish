@@ -120,11 +120,21 @@ Fans:
       "PartLocation":
         ServiceLabel: "Filter 1"
         LocationType: "Bay"  
-"leak_detector":
-  "1":
+"leak_detectors":
+  "Device1":
     "Location":
       "PartLocation":
         ServiceLabel: "Leak Detector 1"
+        LocationType: "Bay"
+  "Rack1":
+    "Location":
+      "PartLocation":
+        ServiceLabel: "rack Leak Detector 1"
+        LocationType: "Bay"
+  "Rack2":
+    "Location":
+      "PartLocation":
+        ServiceLabel: "rack Leak Detector 2"
         LocationType: "Bay"
 CDU:
   Manufacturer: *mainManufacturer

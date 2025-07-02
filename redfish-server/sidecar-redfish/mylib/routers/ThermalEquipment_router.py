@@ -11,6 +11,7 @@ import requests
 from http import HTTPStatus
 from mylib.common.my_resource import MyResource
 from mylib.common.proj_error import ProjRedfishError, ProjRedfishErrorCode
+from load_env import hardware_info
 
 ThermalEquipment_ns = Namespace('', description='ThermalEquipment Collection')
 
@@ -676,13 +677,13 @@ class MyBaseThermalEquipment(MyResource):
         self.cdu_count = int(os.getenv("REDFISH_CDUS_COLLECTION_CNT", 1))
         self.primary_coolant_connector_count = 1
         self.secondary_coolant_connector_count = 1
-        self.leak_detector_count = 1
+        self.leak_detector_count = len(hardware_info.get("leak_detectors", {}))
     
     def _validate_request(self):
         try:
             cdu_id = request.view_args.get("cdu_id")
             connector_id = request.view_args.get("connector_id")
-            leak_detector_id = request.view_args.get("leak_detector_id")
+            # leak_detector_id = request.view_args.get("leak_detector_id")
 
             if not self._is_valid_id(cdu_id, self.cdu_count):
                 abort(HTTPStatus.NOT_FOUND, description=f"cdu_id, {cdu_id}, not found")
@@ -690,8 +691,8 @@ class MyBaseThermalEquipment(MyResource):
             if not self._is_valid_id(connector_id, self.primary_coolant_connector_count):
                 abort(HTTPStatus.NOT_FOUND, description=f"connector_id, {connector_id}, not found")
             
-            if not self._is_valid_id(leak_detector_id, self.leak_detector_count):
-                abort(HTTPStatus.NOT_FOUND, description=f"leak_detector_id, {leak_detector_id}, not found")
+            # if not self._is_valid_id(leak_detector_id, self.leak_detector_count):
+            #     abort(HTTPStatus.NOT_FOUND, description=f"leak_detector_id, {leak_detector_id}, not found")
         except Exception as e:
             abort(HTTPStatus.NOT_FOUND, description=f"[Unexpected Error] {e}")
     
@@ -1018,17 +1019,17 @@ class LeakDetectionLeakDetectors(MyBaseThermalEquipment):
     def get(self, cdu_id):
         rf_ThermalEquipment_service = RfThermalEquipmentService()
         resp_json = rf_ThermalEquipment_service.fetch_CDUs_LeakDetection_LeakDetectors(cdu_id)
-        resp_json["Members@odata.count"] = 1
-        resp_json["Members"] = [
-            {"@odata.id": f"/redfish/v1/ThermalEquipment/CDUs/{cdu_id}/LeakDetection/LeakDetectors/1"}
-        ]
         return resp_json
 
 @ThermalEquipment_ns.route("/ThermalEquipment/CDUs/<cdu_id>/LeakDetection/LeakDetectors/<string:leak_detector_id>")
-class LeakDetectionLeakDetectors1(MyBaseThermalEquipment):
+class LeakDetectionLeakDetectors1(Resource):
     # # @requires_auth
     @ThermalEquipment_ns.doc("thermal_equipment_cdus_1_LeakDetection_LeakDetectors_1")
     def get(self, cdu_id, leak_detector_id):
+        # 驗證 cdu_id 和 leak_detector_id
+        if leak_detector_id not in hardware_info["leak_detectors"].keys():
+            abort(HTTPStatus.NOT_FOUND, description=f"leak_detector_id, {leak_detector_id}, not found")
+            
         rep = RfThermalEquipmentService().fetch_CDUs_LeakDetection_LeakDetectors_id(cdu_id, leak_detector_id)
         return rep
 
