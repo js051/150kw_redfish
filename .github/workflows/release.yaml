@@ -1,8 +1,8 @@
 # .github/workflows/release.yaml
 #
-# 功能：為專案建立「增量」或「全量」更新包。
-#       此版本已改用 Python 腳本 (create_package.py) 進行打包，並增加了自動化驗證流程。
-#       打包後可選擇性地傳送至遠端主機（例如 192.168.3.137）。
+# 功能：建立、驗證並加密一個「增量」或「全量」更新包。
+#       此版本已改用 Python 腳本 (create_package.py) 進行打包，並增加了自動化驗證與 GPG 加密流程。
+#       最終產物為一個 .tar.gz.gpg 加密檔案，傳送至遠端主機。
 #
 # 觸發：
 #   1. Pull Request 關閉並合併至 main 分支時。
@@ -15,10 +15,12 @@
 #   ─ 手動同時給 previous_tag → 直接用指定區間
 #
 # 部署設定：
-#   • Secrets: REMOTE_SSH_PASSWORD  (密碼仍建議使用 Secrets 管理)
-#   • 主機與路徑: IP、使用者、目錄等設定已直接在此檔案的 "Define Environment Variables" 步驟中指定，
-#                 無需在 GitHub 頁面設定 Variables，方便在無權限環境下使用。
-name: Build, Verify & Deploy Incremental Package
+#   • Secrets (必須設定):
+#     - REMOTE_SSH_PASSWORD: 用於部署的 SSH 密碼。
+#     - GPG_PASSPHRASE:    用於 GPG 對稱加密的私鑰。
+#   • 主機與路徑: IP、使用者、目錄等設定已直接在此檔案的 "Define Environment Variables" 步驟中指定。
+#
+name: Build, Verify, Encrypt & Deploy Package
 
 on:
   pull_request:
@@ -26,16 +28,16 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
+      encrypt_package:
+        description: "true -> 對產出的包進行 GPG 加密 (預設)"
+        type: boolean
+        default: true
       full_package:
-        description: "true -> 建立一個包含所有檔案的『全量包』，而非增量包"
+        description: "true -> 建立包含所有檔案的『全量包』"
         type: boolean
         default: false
       dry_run:
         description: "true -> 只建構和驗證，不執行遠端部署"
-        type: boolean
-        default: false
-      debug:
-        description: "true -> 啟用 'set -x' 模式"
         type: boolean
         default: false
       override_host:
@@ -43,25 +45,28 @@ on:
         type: string
         default: ""
       new_tag:
-        description: "新版本 (tag 或 commit hash，留空則為 HEAD)"
+        description: "新版本 (tag/hash, 留空為 HEAD)"
         type: string
         default: ""
       previous_tag:
-        description: "舊版本 (tag 或 commit hash，留空則自動推算)"
+        description: "舊版本 (tag/hash, 留空則自動推算)"
         type: string
         default: ""
 
 jobs:
-  # --- JOB 1: Build the package ---
-  build:
+  # This single job handles the entire process from build to deploy
+  # to simplify logic and avoid cross-job variable passing issues.
+  build_verify_encrypt_deploy:
     if: github.event.pull_request == null || github.event.pull_request.merged == true
     runs-on: ubuntu-22.04
-    outputs:
-      package_name: ${{ steps.pkg.outputs.pkg_name }}
 
     steps:
       - name: Install prerequisite tools
-        run: sudo apt-get update && sudo apt-get install -y sshpass tree
+        run: |
+          sudo apt-get update && sudo apt-get install -y \
+            sshpass \
+            tree \
+            gnupg
 
       - name: Checkout repository (full history)
         uses: actions/checkout@v4
@@ -73,46 +78,50 @@ jobs:
         with:
           python-version: "3.10"
 
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
       - name: Install script dependencies
         run: pip install pathspec
 
       - name: Define Environment Variables
         id: envset
-        env:
-          PASS_FROM_SEC: ${{ secrets.REMOTE_SSH_PASSWORD }}
         run: |
-          # --- Remote Host Logic ---
-          if [ -n "${{ inputs.override_host }}" ]; then
-            REMOTE_HOST='${{ inputs.override_host }}'
+          # Safely access inputs, providing defaults for non-dispatch events.
+          # This prevents errors when the workflow is triggered by non-dispatch events.
+          IS_FULL_PACKAGE="${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.full_package) || 'false' }}"
+          IS_DRY_RUN="${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run) || 'false' }}"
+          OVERRIDE_HOST="${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.override_host) || '' }}"
+          NEW_TAG_INPUT="${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.new_tag) || '' }}"
+
+          # Determine remote host IP
+          if [ -n "$OVERRIDE_HOST" ]; then
+            REMOTE_HOST="$OVERRIDE_HOST"
           else
-            # Default host IP
             REMOTE_HOST="itgsystem3.asuscomm.com"
           fi
 
-          # --- Hardcoded Paths for 'jason' user ---
-          # This section is tailored for the specific user environment.
+          # Hardcoded user and directory for the target server
           REMOTE_USER="user"
           REMOTE_DIR="/home/user/tmp/users/jason"
 
-          echo "DRY_RUN=${{ inputs.dry_run }}" >> $GITHUB_ENV
-          echo "DEBUG_FLAG=${{ inputs.debug }}" >> $GITHUB_ENV
+          # Write to GITHUB_ENV for use in subsequent steps of this job.
+          # We no longer need GITHUB_OUTPUT as we are now in a single job.
+          echo "IS_FULL_PACKAGE=$IS_FULL_PACKAGE" >> $GITHUB_ENV
+          echo "DRY_RUN=$IS_DRY_RUN" >> $GITHUB_ENV
+          echo "NEW_TAG_INPUT=$NEW_TAG_INPUT" >> $GITHUB_ENV
           echo "REMOTE_HOST=$REMOTE_HOST" >> $GITHUB_ENV
-          echo "SSH_PASSWORD=${PASS_FROM_SEC:-0000}" >> $GITHUB_ENV
           echo "REMOTE_USER=$REMOTE_USER" >> $GITHUB_ENV
           echo "REMOTE_DIR=$REMOTE_DIR" >> $GITHUB_ENV
 
-      - name: Enable shell trace (if debug)
-        if: env.DEBUG_FLAG == 'true'
-        run: echo 'set -x' >> $GITHUB_ENV
-
       - name: Determine version range
         id: ver
-        if: inputs.full_package != 'true'
-        # This logic is robust and remains unchanged.
+        if: env.IS_FULL_PACKAGE != 'true'
         run: |
           set -e
-          NEW_TAG="${{ inputs.new_tag || 'HEAD' }}"
-          PREVIOUS_TAG="${{ inputs.previous_tag }}"
+          NEW_TAG="${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.new_tag) || 'HEAD' }}"
+          PREVIOUS_TAG="${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.previous_tag) || '' }}"
+
           if [ -n "$PREVIOUS_TAG" ]; then
             OLD_TAG="$PREVIOUS_TAG"
           else
@@ -122,148 +131,170 @@ jobs:
               OLD_TAG=$(git describe --tags --abbrev=0 "$NEW_TAG" 2>/dev/null)
             fi
           fi
+
           if [ -z "$OLD_TAG" ]; then
             echo "No previous tag found. Using the first commit as the old version."
             OLD_TAG=$(git rev-list --max-parents=0 HEAD)
           fi
+
+          NEW_TAG_SHA=$(git rev-parse "$NEW_TAG")
+
           echo "old_tag=$OLD_TAG" >> "$GITHUB_OUTPUT"
-          echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
-          echo "---------------------------------------------"
-          echo "Packaging Range: $OLD_TAG  →  $NEW_TAG"
-          echo "---------------------------------------------"
+          echo "new_tag_sha=$NEW_TAG_SHA" >> "$GITHUB_OUTPUT"
+          echo "Packaging Range: $OLD_TAG -> $NEW_TAG"
 
       - name: Build Package
         id: pkg
         run: |
-          # --- Auto-detect script path for portability ---
           if ! SCRIPT_PATH=$(find . -type f -name 'create_package.py' -print -quit); then
-            echo "Error: Packaging script 'create_package.py' not found."
+            echo "Error: Packaging script 'create_package.py' not found." >&2
             exit 1
           fi
-          echo "Found Python packaging script at: $SCRIPT_PATH"
 
-          # --- Build command based on package type ---
-          if [[ "${{ inputs.full_package }}" == "true" ]]; then
+          if [[ "$IS_FULL_PACKAGE" == "true" ]]; then
             echo "--- Building FULL package ---"
-            # For a full package, we only need the new_tag. old_tag is ignored.
-            NEW_VERSION="${{ inputs.new_tag || 'HEAD' }}"
+            NEW_VERSION="${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.new_tag) || 'HEAD' }}"
             python3 "$SCRIPT_PATH" "ignored" "$NEW_VERSION" --full
           else
             echo "--- Building INCREMENTAL package ---"
-            python3 "$SCRIPT_PATH" "${{ steps.ver.outputs.old_tag }}" "${{ steps.ver.outputs.new_tag }}"
+            python3 "$SCRIPT_PATH" "${{ steps.ver.outputs.old_tag }}" "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.new_tag) || 'HEAD' }}"
           fi
 
-          # The rest of the script finds the created package
           PKG_NAME=$(ls -t ITG_*.tar.gz | head -n 1)
           if [ -z "$PKG_NAME" ]; then
-            echo "Error: No package file was created."
+            echo "Error: No package file was created." >&2
             exit 1
           fi
-          echo "pkg_name=$PKG_NAME" >> $GITHUB_OUTPUT
-          echo "Generated file: $PKG_NAME"
+
+          echo "pkg_name=$PKG_NAME" >> "$GITHUB_OUTPUT"
+          echo "Generated package: $PKG_NAME"
           ls -lh "$PKG_NAME"
 
-      - name: Upload package to remote
-        if: env.DRY_RUN != 'true'
-        env:
-          SSH_PASSWORD: ${{ env.SSH_PASSWORD }}
+      - name: Verify Package Integrity
+        id: verify
         run: |
-          PKG_NAME=${{ steps.pkg.outputs.pkg_name }}
-          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-            $REMOTE_USER@$REMOTE_HOST "mkdir -p $REMOTE_DIR"
-          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-            "$PKG_NAME" $REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/
+          PKG_NAME="${{ steps.pkg.outputs.pkg_name }}"
+          mkdir -p ./verify_contents
 
-      - name: Store package as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.pkg.outputs.pkg_name }}
-          path: ${{ steps.pkg.outputs.pkg_name }}
-          retention-days: 7
+          # Extract the package for verification
+          tar --no-same-owner --no-same-permissions -xvf "$PKG_NAME" -C ./verify_contents
 
-  # --- JOB 2: Verify the created package (IMPROVED LOGIC) ---
-  verify:
-    needs: build
-    if: success()
-    runs-on: ubuntu-22.04
-
-    steps:
-      - name: Download package artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ needs.build.outputs.package_name }}
-          path: ./package_contents
-
-      - name: Setup Python 3.10
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-
-      - name: Extract package and find modules
-        id: extract
-        run: |
-          PKG_NAME="${{ needs.build.outputs.package_name }}"
-          tar -xvf "./package_contents/$PKG_NAME" -C ./package_contents
-          echo "Extracted contents:"
-          ls -R ./package_contents
-          MODULE_DIRS=$(find ./package_contents/app -maxdepth 2 -name "requirements.txt" -exec dirname {} \; | xargs -r)
-          echo "module_dirs=${MODULE_DIRS}" >> $GITHUB_OUTPUT
-          echo "pkg_name=$PKG_NAME" >> $GITHUB_OUTPUT
-
-      - name: Verify dependency integrity (Smart Check)
-        if: steps.extract.outputs.module_dirs != ''
-        run: |
-          echo "Verifying dependency integrity..."
-          PKG_NAME="${{ steps.extract.outputs.pkg_name }}"
-
-          # Check if this is an incremental update package
+          # Smart Check: Use different verification strategies for incremental vs full packages
           if [[ "$PKG_NAME" == ITG_Update_* ]]; then
-            echo "--- Running INCREMENTAL package verification ---"
-            # For incremental packages, we verify that every wheel file in the package is valid and installable by itself.
-            # not try to satisfy the full requirements.txt.
-            WHEELS_DIR="./package_contents/wheels"
+            echo "--- Verifying INCREMENTAL package ---"
+            WHEELS_DIR="./verify_contents/wheels"
             if [ -d "$WHEELS_DIR" ] && [ -n "$(find "$WHEELS_DIR" -type f -name '*.whl')" ]; then
-              # Find all wheel files and ask pip to install them.
-              find "$WHEELS_DIR" -type f -name '*.whl' | xargs -r python3 -m pip install --dry-run --no-index --find-links="$WHEELS_DIR"
-              echo "--- Incremental package wheels integrity check PASSED ---"
-            else
-              echo "No wheels found in incremental package, skipping check."
+              find "$WHEELS_DIR" -type f -name '*.whl' -print0 | xargs -0 -r python3 -m pip install --dry-run --no-index --find-links="$WHEELS_DIR"
             fi
           else
-            # For full packages, the original verification logic is correct.
-            echo "--- Running FULL package verification ---"
-            for APP_DIR in ${{ steps.extract.outputs.module_dirs }}; do
-              MODULE_PATH=$(realpath --relative-to=./package_contents/app "$APP_DIR")
-              REQ_FILE="$APP_DIR/requirements.txt"
-              WHEELS_DIR="./package_contents/wheels/$MODULE_PATH"
-              echo "--- Checking module: $MODULE_PATH ---"
-              if [ -d "$WHEELS_DIR" ]; then
-                python3 -m pip install --dry-run --no-index --find-links="$WHEELS_DIR" -r "$REQ_FILE"
-                echo "--- Check for $MODULE_PATH PASSED ---"
-              else
-                echo "No wheels directory found for $MODULE_PATH, skipping check."
-              fi
-            done
+            echo "--- Verifying FULL package ---"
+            MODULE_DIRS=$(find ./verify_contents/app -maxdepth 2 -name "requirements.txt" -exec dirname {} \; 2>/dev/null || true)
+            if [ -n "$MODULE_DIRS" ]; then
+              for APP_DIR in $MODULE_DIRS; do
+                MODULE_PATH=$(realpath --relative-to=./verify_contents/app "$APP_DIR")
+                REQ_FILE="$APP_DIR/requirements.txt"
+                WHEELS_DIR="./verify_contents/wheels/$MODULE_PATH"
+                if [ -d "$WHEELS_DIR" ]; then
+                  python3 -m pip install --dry-run --no-index --find-links="$WHEELS_DIR" -r "$REQ_FILE"
+                fi
+              done
+            fi
           fi
+          echo "Package integrity verification PASSED."
 
-      # The checksum generation part does not need to be changed.
-      - name: Generate checksum file for wheels
-        id: checksum
+      - name: Finalize and Encrypt Package
+        # This step runs ONLY if encryption is enabled and not a dry-run
+        if: inputs.encrypt_package == true && inputs.dry_run != true
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          SSH_PASSWORD: ${{ secrets.REMOTE_SSH_PASSWORD }}
         run: |
-          echo "Generating SHA256 checksums for wheels..."
-          WHEELS_DIR="./package_contents/wheels"
-          CHECKSUM_FILE="./package_contents/sha256sum-wheels.txt"
-          if [ -d "$WHEELS_DIR" ] && [ -n "$(find "$WHEELS_DIR" -type f -name '*.whl')" ]; then
-            find "$WHEELS_DIR" -type f -name '*.whl' -print0 | sort -z | xargs -0 sha256sum > "$CHECKSUM_FILE"
-            echo "Checksum file created:"; cat "$CHECKSUM_FILE"
-            echo "has_checksum=true" >> $GITHUB_OUTPUT
-          else
-            echo "No wheels found, skipping checksum generation."; echo "has_checksum=false" >> $GITHUB_OUTPUT
+          # Check if secrets are set
+          if [ -z "$GPG_PASSPHRASE" ]; then echo "Error: GPG_PASSPHRASE secret is not set." >&2; exit 1; fi
+          if [ -z "$SSH_PASSWORD" ]; then echo "Error: REMOTE_SSH_PASSWORD secret is not set." >&2; exit 1; fi
+
+          CANDIDATE_PKG_NAME="${{ steps.pkg.outputs.pkg_name }}"
+
+          # First, encrypt and upload the candidate package (e.g., ..._to_HEAD.tar.gz)
+          echo "Encrypting candidate package '$CANDIDATE_PKG_NAME'..."
+          CANDIDATE_GPG_NAME="${CANDIDATE_PKG_NAME}.gpg"
+          gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase "$GPG_PASSPHRASE" -o "$CANDIDATE_GPG_NAME" "$CANDIDATE_PKG_NAME"
+
+          echo "Uploading candidate package to remote server..."
+          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$REMOTE_USER@$REMOTE_HOST" "mkdir -p $REMOTE_DIR"
+          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$CANDIDATE_GPG_NAME" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/"
+
+          # Now, create and upload the final package with commit hash if it was a HEAD build
+          if [[ "${{ env.NEW_TAG_INPUT }}" == "" ]]; then
+            COMMIT_SHA_SHORT=$(echo "${{ steps.ver.outputs.new_tag_sha || github.sha }}" | cut -c1-8)
+            if [[ "$CANDIDATE_PKG_NAME" == ITG_Update_* ]]; then
+              FINAL_PKG_NAME=$(echo "$CANDIDATE_PKG_NAME" | sed "s/_to_HEAD.tar.gz$/_to_${COMMIT_SHA_SHORT}.tar.gz/")
+            else
+              FINAL_PKG_NAME=$(echo "$CANDIDATE_PKG_NAME" | sed "s/_HEAD.tar.gz$/_${COMMIT_SHA_SHORT}.tar.gz/")
+            fi
+            
+            # Encrypt the final package as well
+            FINAL_GPG_NAME="${FINAL_PKG_NAME}.gpg"
+            echo "Encrypting final package '$FINAL_PKG_NAME'..."
+            gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase "$GPG_PASSPHRASE" -o "$FINAL_GPG_NAME" "$CANDIDATE_PKG_NAME" # Source is still the original .tar.gz
+
+            echo "Uploading final package to remote server..."
+            sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$FINAL_GPG_NAME" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/"
           fi
 
-      - name: Store verification results as artifact
-        if: steps.checksum.outputs.has_checksum == 'true'
-        uses: actions/upload-artifact@v4
+          echo "Upload(s) complete."
+
+      - name: Upload Unencrypted Package
+        # This step runs ONLY if encryption is disabled and not a dry-run
+        if: inputs.encrypt_package == false && inputs.dry_run != true
+        env:
+          SSH_PASSWORD: ${{ secrets.REMOTE_SSH_PASSWORD }}
+        run: |
+          if [ -z "$SSH_PASSWORD" ]; then echo "Error: REMOTE_SSH_PASSWORD secret is not set." >&2; exit 1; fi
+
+          CANDIDATE_PKG_NAME="${{ steps.pkg.outputs.pkg_name }}"
+
+          # First, upload the candidate package
+          echo "Uploading candidate package '$CANDIDATE_PKG_NAME' to remote server..."
+          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$REMOTE_USER@$REMOTE_HOST" "mkdir -p $REMOTE_DIR"
+          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$CANDIDATE_PKG_NAME" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/"
+
+          # Now, copy and upload the final package with commit hash if it was a HEAD build
+          if [[ "${{ env.NEW_TAG_INPUT }}" == "" ]]; then
+            COMMIT_SHA_SHORT=$(echo "${{ steps.ver.outputs.new_tag_sha || github.sha }}" | cut -c1-8)
+            if [[ "$CANDIDATE_PKG_NAME" == ITG_Update_* ]]; then
+              FINAL_PKG_NAME=$(echo "$CANDIDATE_PKG_NAME" | sed "s/_to_HEAD.tar.gz$/_to_${COMMIT_SHA_SHORT}.tar.gz/")
+            else
+              FINAL_PKG_NAME=$(echo "$CANDIDATE_PKG_NAME" | sed "s/_HEAD.tar.gz$/_${COMMIT_SHA_SHORT}.tar.gz/")
+            fi
+            
+            # Copy the file to its new name
+            cp "$CANDIDATE_PKG_NAME" "$FINAL_PKG_NAME"
+            
+            echo "Uploading final package '$FINAL_PKG_NAME' to remote server..."
+            sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$FINAL_PKG_NAME" "$REMOTE_USER@$REMOTE_HOST:$REMOTE_DIR/"
+          fi
+
+          echo "Upload(s) complete."
+
+      - name: Store Package as Artifact
+        # This step always runs, even in dry-run mode, to allow downloading the result
+        run: |
+          # Determine which file to upload as an artifact
+          if [[ -f *.tar.gz.gpg ]]; then
+            PKG_TO_UPLOAD=$(ls *.tar.gz.gpg)
+          elif [[ -f *.tar.gz ]]; then
+            PKG_TO_UPLOAD=$(ls *.tar.gz)
+          fi
+
+          if [ -n "$PKG_TO_UPLOAD" ]; then
+            echo "pkg_name=$PKG_TO_UPLOAD" >> "$GITHUB_OUTPUT"
+          fi
+        id: find_final_pkg
+
+      - uses: actions/upload-artifact@v4
+        if: steps.find_final_pkg.outputs.pkg_name
         with:
-          name: verification-results-${{ needs.build.outputs.package_name }}
-          path: ./package_contents/sha256sum-wheels.txt
+          name: ${{ steps.find_final_pkg.outputs.pkg_name }}
+          path: ${{ steps.find_final_pkg.outputs.pkg_name }}
+          retention-days: 7
