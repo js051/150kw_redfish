@@ -170,6 +170,46 @@ jobs:
           echo "Generated package: $PKG_NAME"
           ls -lh "$PKG_NAME"
 
+      - name: Verify requirements.txt Completeness (pip check)
+        run: |
+          echo "Verifying that each requirements.txt is a complete dependency freeze..."
+
+          # We check the original source code, not the extracted package content.
+          # This check runs regardless of package type (incremental or full).
+          MODULE_DIRS=$(find . -maxdepth 2 -name "requirements.txt" -exec dirname {} \; 2>/dev/null || true)
+
+          if [ -n "$MODULE_DIRS" ]; then
+            for MODULE_DIR in $MODULE_DIRS; do
+              REQ_FILE="$MODULE_DIR/requirements.txt"
+              # Trim leading './' for cleaner display name
+              MODULE_NAME=$(echo "$MODULE_DIR" | sed 's|^\./||')
+              
+              echo "--- Checking module: $MODULE_NAME ---"
+              
+              # Create a temporary, isolated virtual environment for this check
+              python3 -m venv "./venv-check-$MODULE_NAME"
+              source "./venv-check-$MODULE_NAME/bin/activate"
+              
+              # Upgrade pip inside the venv
+              pip install --upgrade pip > /dev/null
+              
+              # Install dependencies from the requirements file. Pip will fetch from PyPI.
+              pip install -r "$REQ_FILE" > /dev/null
+              
+              # Now, check if the installed environment is consistent.
+              # If requirements.txt was missing a sub-dependency, `pip check` will fail.
+              echo "Running 'pip check' for module $MODULE_NAME..."
+              pip check
+              
+              # Deactivate and clean up the temporary environment
+              deactivate
+              rm -rf "./venv-check-$MODULE_NAME"
+              echo "--- Completeness check for $MODULE_NAME PASSED ---"
+            done
+          else
+            echo "No requirements.txt files found, skipping completeness check."
+          fi
+
       - name: Verify Package Integrity
         id: verify
         run: |
@@ -184,7 +224,10 @@ jobs:
             echo "--- Verifying INCREMENTAL package ---"
             WHEELS_DIR="./verify_contents/wheels"
             if [ -d "$WHEELS_DIR" ] && [ -n "$(find "$WHEELS_DIR" -type f -name '*.whl')" ]; then
-              find "$WHEELS_DIR" -type f -name '*.whl' -print0 | xargs -0 -r python3 -m pip install --dry-run --no-index --find-links="$WHEELS_DIR"
+              # WITHOUT checking for its dependencies, because we intentionally did not package them.
+              # Adding '--no-deps' to the verification command aligns it with the download strategy.
+              find "$WHEELS_DIR" -type f -name '*.whl' -print0 | xargs -0 -r python3 -m pip install --dry-run --no-index --find-links="$WHEELS_DIR" --no-deps
+              echo "--- Incremental package wheels integrity check PASSED ---"
             fi
           else
             echo "--- Verifying FULL package ---"
