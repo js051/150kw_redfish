@@ -97,7 +97,7 @@ jobs:
           echo "DRY_RUN=${{ inputs.dry_run }}" >> $GITHUB_ENV
           echo "DEBUG_FLAG=${{ inputs.debug }}" >> $GITHUB_ENV
           echo "REMOTE_HOST=$REMOTE_HOST" >> $GITHUB_ENV
-          echo "SSH_PASSWORD=${PASS_FROM_SEC:-'0000'}" >> $GITHUB_ENV
+          echo "SSH_PASSWORD=${PASS_FROM_SEC:-0000}" >> $GITHUB_ENV
           echo "REMOTE_USER=$REMOTE_USER" >> $GITHUB_ENV
           echo "REMOTE_DIR=$REMOTE_DIR" >> $GITHUB_ENV
 
