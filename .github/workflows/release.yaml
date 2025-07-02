@@ -88,7 +88,7 @@ jobs:
             # Default host IP
             REMOTE_HOST="itgsystem3.asuscomm.com"
           fi
-          
+
           # --- Hardcoded Paths for 'jason' user ---
           # This section is tailored for the specific user environment.
           REMOTE_USER="user"
@@ -131,7 +131,7 @@ jobs:
           echo "---------------------------------------------"
           echo "Packaging Range: $OLD_TAG  →  $NEW_TAG"
           echo "---------------------------------------------"
-      
+
       - name: Build Package
         id: pkg
         run: |
@@ -181,13 +181,12 @@ jobs:
           path: ${{ steps.pkg.outputs.pkg_name }}
           retention-days: 7
 
-  # --- JOB 2: Verify the created package ---
-  # This job does not depend on any settings and is highly recommended.
+  # --- JOB 2: Verify the created package (IMPROVED LOGIC) ---
   verify:
     needs: build
     if: success()
     runs-on: ubuntu-22.04
-    
+
     steps:
       - name: Download package artifact
         uses: actions/download-artifact@v4
@@ -209,24 +208,45 @@ jobs:
           ls -R ./package_contents
           MODULE_DIRS=$(find ./package_contents/app -maxdepth 2 -name "requirements.txt" -exec dirname {} \; | xargs -r)
           echo "module_dirs=${MODULE_DIRS}" >> $GITHUB_OUTPUT
+          echo "pkg_name=$PKG_NAME" >> $GITHUB_OUTPUT
 
-      - name: Verify dependency integrity (offline dry-run install)
+      - name: Verify dependency integrity (Smart Check)
         if: steps.extract.outputs.module_dirs != ''
         run: |
-          echo "Verifying dependency integrity for each module..."
-          for APP_DIR in ${{ steps.extract.outputs.module_dirs }}; do
-            MODULE_PATH=$(realpath --relative-to=./package_contents/app "$APP_DIR")
-            REQ_FILE="$APP_DIR/requirements.txt"
-            WHEELS_DIR="./package_contents/wheels/$MODULE_PATH"
-            echo "--- Checking module: $MODULE_PATH ---"
-            if [ -d "$WHEELS_DIR" ]; then
-              python3 -m pip install --dry-run --no-index --find-links="$WHEELS_DIR" -r "$REQ_FILE"
-              echo "--- Check for $MODULE_PATH PASSED ---"
-            else
-              echo "No wheels directory found for $MODULE_PATH, skipping check."
-            fi
-          done
+          echo "Verifying dependency integrity..."
+          PKG_NAME="${{ steps.extract.outputs.pkg_name }}"
 
+          # Check if this is an incremental update package
+          if [[ "$PKG_NAME" == ITG_Update_* ]]; then
+            echo "--- Running INCREMENTAL package verification ---"
+            # For incremental packages, we verify that every wheel file in the package is valid and installable by itself.
+            # not try to satisfy the full requirements.txt.
+            WHEELS_DIR="./package_contents/wheels"
+            if [ -d "$WHEELS_DIR" ] && [ -n "$(find "$WHEELS_DIR" -type f -name '*.whl')" ]; then
+              # Find all wheel files and ask pip to install them.
+              find "$WHEELS_DIR" -type f -name '*.whl' | xargs -r python3 -m pip install --dry-run --no-index --find-links="$WHEELS_DIR"
+              echo "--- Incremental package wheels integrity check PASSED ---"
+            else
+              echo "No wheels found in incremental package, skipping check."
+            fi
+          else
+            # For full packages, the original verification logic is correct.
+            echo "--- Running FULL package verification ---"
+            for APP_DIR in ${{ steps.extract.outputs.module_dirs }}; do
+              MODULE_PATH=$(realpath --relative-to=./package_contents/app "$APP_DIR")
+              REQ_FILE="$APP_DIR/requirements.txt"
+              WHEELS_DIR="./package_contents/wheels/$MODULE_PATH"
+              echo "--- Checking module: $MODULE_PATH ---"
+              if [ -d "$WHEELS_DIR" ]; then
+                python3 -m pip install --dry-run --no-index --find-links="$WHEELS_DIR" -r "$REQ_FILE"
+                echo "--- Check for $MODULE_PATH PASSED ---"
+              else
+                echo "No wheels directory found for $MODULE_PATH, skipping check."
+              fi
+            done
+          fi
+
+      # The checksum generation part does not need to be changed.
       - name: Generate checksum file for wheels
         id: checksum
         run: |
