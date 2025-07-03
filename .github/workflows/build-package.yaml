@@ -1,4 +1,4 @@
-# .github/workflows/release.yaml
+# .github/workflows/build-package.yaml
 #
 # 功能：建立、驗證並加密一個「增量」或「全量」更新包。
 #       此版本已改用 Python 腳本 (create_package.py) 進行打包，並增加了自動化驗證與 GPG 加密流程。
