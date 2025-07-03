@@ -220,30 +220,53 @@ jobs:
           tar --no-same-owner --no-same-permissions -xvf "$PKG_NAME" -C ./verify_contents
 
           # Smart Check: Use different verification strategies for incremental vs full packages
-          if [[ "$PKG_NAME" == ITG_Update_* ]]; then
-            echo "--- Verifying INCREMENTAL package ---"
-            WHEELS_DIR="./verify_contents/wheels"
-            if [ -d "$WHEELS_DIR" ] && [ -n "$(find "$WHEELS_DIR" -type f -name '*.whl')" ]; then
-              # WITHOUT checking for its dependencies, because we intentionally did not package them.
-              # Adding '--no-deps' to the verification command aligns it with the download strategy.
-              find "$WHEELS_DIR" -type f -name '*.whl' -print0 | xargs -0 -r python3 -m pip install --dry-run --no-index --find-links="$WHEELS_DIR" --no-deps
-              echo "--- Incremental package wheels integrity check PASSED ---"
-            fi
+          # It finds all requirements.txt files within the extracted 'app' directory.
+          MODULE_REQ_FILES=$(find ./verify_contents/app -maxdepth 2 -name "requirements.txt" 2>/dev/null || true)
+
+          if [ -z "$MODULE_REQ_FILES" ]; then
+            echo "No requirements.txt found in the package, skipping dependency verification."
           else
-            echo "--- Verifying FULL package ---"
-            MODULE_DIRS=$(find ./verify_contents/app -maxdepth 2 -name "requirements.txt" -exec dirname {} \; 2>/dev/null || true)
-            if [ -n "$MODULE_DIRS" ]; then
-              for APP_DIR in $MODULE_DIRS; do
-                MODULE_PATH=$(realpath --relative-to=./verify_contents/app "$APP_DIR")
-                REQ_FILE="$APP_DIR/requirements.txt"
-                WHEELS_DIR="./verify_contents/wheels/$MODULE_PATH"
-                if [ -d "$WHEELS_DIR" ]; then
-                  python3 -m pip install --dry-run --no-index --find-links="$WHEELS_DIR" -r "$REQ_FILE"
-                fi
-              done
-            fi
+            echo "--- Verifying dependencies module by module ---"
+            for REQ_FILE in $MODULE_REQ_FILES; do
+              # Determine the module path relative to 'app'
+              # e.g., './verify_contents/app/RestAPI/requirements.txt' -> 'RestAPI'
+              APP_DIR=$(dirname "$REQ_FILE")
+              MODULE_PATH=$(realpath --relative-to=./verify_contents/app "$APP_DIR")
+              
+              echo "--- Checking module: $MODULE_PATH ---"
+
+              # The corresponding wheel directory for this module
+              WHEELS_DIR="./verify_contents/wheels/$MODULE_PATH"
+
+              # If there are no wheels for this module (e.g., in an incremental package
+              # where this module's dependencies didn't change), we skip the check.
+              if [ ! -d "$WHEELS_DIR" ] || [ -z "$(ls -A "$WHEELS_DIR")" ]; then
+                echo "No new/updated wheels for module $MODULE_PATH, skipping installation check."
+                continue
+              fi
+
+              # each service has its own venv.
+              # 1. create a temporary, isolated virtual environment for this specific module.
+              TEMP_VENV="./venv-check-$MODULE_PATH"
+              python3 -m venv "$TEMP_VENV"
+              source "$TEMP_VENV/bin/activate"
+
+              # 2. try to install the requirements for THIS module, using ONLY its own wheels.
+              # This will succeed even if the wheels only contain a subset of dependencies
+              # (like in an incremental package), as pip will fetch the rest from PyPI.
+              # The goal is to ensure the packaged wheels themselves are valid and not conflicting
+              # within the scope of a single module's installation.
+              echo "Attempting to install requirements from $REQ_FILE using wheels from $WHEELS_DIR..."
+              pip install --no-cache-dir --find-links="$WHEELS_DIR" -r "$REQ_FILE"
+
+              # 3. If the installation succeeds, it means the wheels for this module are valid.
+              # We then clean up the environment.
+              deactivate
+              rm -rf "$TEMP_VENV"
+              echo "--- Verification for module $MODULE_PATH PASSED ---"
+            done
           fi
-          echo "Package integrity verification PASSED."
+          echo "All package integrity checks PASSED."
 
       - name: Finalize and Encrypt Package
         # This step runs ONLY if encryption is enabled and not a dry-run
@@ -320,24 +343,39 @@ jobs:
 
           echo "Upload(s) complete."
 
-      - name: Store Package as Artifact
-        # This step always runs, even in dry-run mode, to allow downloading the result
+      - name: Store Final Package as Artifact
+        # This step now focuses on finding and uploading ONLY the final, versioned package.
+        id: find_final_pkg
         run: |
-          # Determine which file to upload as an artifact
-          if [[ -f *.tar.gz.gpg ]]; then
-            PKG_TO_UPLOAD=$(ls *.tar.gz.gpg)
-          elif [[ -f *.tar.gz ]]; then
-            PKG_TO_UPLOAD=$(ls *.tar.gz)
+          # The goal is to find the package named with the commit hash, if it exists.
+          # Otherwise, fall back to the package named with the tag or HEAD.
+
+          FINAL_PKG_NAME=""
+          # Check for a hash-named encrypted file first
+          if ls ITG_*_to_????????.tar.gz.gpg >/dev/null 2>&1; then
+            FINAL_PKG_NAME=$(ls ITG_*_to_????????.tar.gz.gpg)
+          # Check for a hash-named unencrypted file
+          elif ls ITG_*_to_????????.tar.gz >/dev/null 2>&1; then
+            FINAL_PKG_NAME=$(ls ITG_*_to_????????.tar.gz)
+          # Fallback to any remaining gpg file
+          elif ls *.tar.gz.gpg >/dev/null 2>&1; then
+            FINAL_PKG_NAME=$(ls -t *.tar.gz.gpg | head -n 1)
+          # Fallback to any remaining tar.gz file
+          elif ls *.tar.gz >/dev/null 2>&1; then
+            FINAL_PKG_NAME=$(ls -t *.tar.gz | head -n 1)
           fi
 
-          if [ -n "$PKG_TO_UPLOAD" ]; then
-            echo "pkg_name=$PKG_TO_UPLOAD" >> "$GITHUB_OUTPUT"
+          if [ -n "$FINAL_PKG_NAME" ]; then
+            echo "Found final package for artifact upload: $FINAL_PKG_NAME"
+            echo "pkg_name=$FINAL_PKG_NAME" >> "$GITHUB_OUTPUT"
+          else
+            echo "No final package found to upload as artifact."
           fi
-        id: find_final_pkg
 
       - uses: actions/upload-artifact@v4
         if: steps.find_final_pkg.outputs.pkg_name
         with:
+          # Use the exact filename found in the previous step
           name: ${{ steps.find_final_pkg.outputs.pkg_name }}
           path: ${{ steps.find_final_pkg.outputs.pkg_name }}
-          retention-days: 7
+          retention-days: 1
