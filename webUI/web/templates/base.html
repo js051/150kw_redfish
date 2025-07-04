@@ -938,6 +938,19 @@
                 console.error("Failed to fetch engineer mode:", error);
             },
         });
+        
+        $.ajax({
+            url: "/get_mac_address",
+            method: "GET",
+            dataType: "json",
+            loader: false,
+            success: function (data) {
+                console.log(data);
+            },
+            error: function (xhr, status, error) {
+                console.error("Failed to fetch MAC:", error);
+            },
+        });
 
 
         async function marquee_data() {

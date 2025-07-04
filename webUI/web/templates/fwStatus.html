@@ -46,6 +46,14 @@ styles %}
     <div class="status">
         <div class="row">
             <div class="col-4">
+                <p>SMC:</p>
+            </div>
+            <div class="col-4">
+                <p id="SMC"></p>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-4">
                 <p>Serial Number:</p>
             </div>
             <div class="col-4">
@@ -154,6 +162,7 @@ styles %}
                 $("#Version").text(FW_Info_Version["WebUI"]);
                 $("#PartNumber").text(json_data["PartNumber"]);
                 $("#SN").text(json_data["SN"]);
+                $("#SMC").text(json_data["SMC"]);
                 $("#Model").text(json_data["Model"]);
                 // $("#WebUI").text(FW_Info_Version["WebUI"]);
                 $("#Release_Time").text(FW_Info_Version["Release_Time"]);

@@ -1180,11 +1180,11 @@ styles %}
                 $(this).attr("data-before", $(this).attr("data-label") + " ▼");
             });
         }
-        
+
         let userType = "{{user}}";
         let time = "";
 
-        if (userType == "kiosk" || userType == "user" ) {
+        if (userType == "kiosk" || userType == "user") {
             $(".inspection_time").hide();
         }
 
@@ -1385,9 +1385,9 @@ styles %}
                     const currentVersion = window.sharedData.version;
                     const currJSON = JSON.stringify(currentVersion);
                     if (currJSON !== lastVersionJSON) {
-                    check_version(data);
+                        check_version(data);
                         lastVersionJSON = currJSON;
-                    updateRowStripes();
+                        updateRowStripes();
                     }
                 } catch (xhr) {
                     console.error(
@@ -1537,6 +1537,7 @@ styles %}
                 success: function (data) {
                     let fw_info_data = data["fw_info_data"];
                     let fw_info_version = data["fw_info_version"];
+                    let mac_info = data["mac_info"];
                     let r1 = "";
                     let inspectionTime = time || "N/A";
 
@@ -1546,13 +1547,44 @@ styles %}
                         r1 += `Last Inspect:,${inspectionTime}\n`;
 
                         let order = [
+                            "SMC",
                             "SN",
                             "Model",
+                            "PartNumber"
                         ]
+                        let nameMap = {
+                            "SMC": "SMC",
+                            "SN": "Serial Number",
+                            "Model": "Model",
+                            "PartNumber": "Part Number"
+                        };
 
                         order.forEach(key => {
                             if (fw_info_data.hasOwnProperty(key)) {
-                                r1 += `${key},${fw_info_data[key]}\n`;
+                                let displayName = nameMap[key] || key; // 預設用原名
+                                r1 += `${displayName},${fw_info_data[key]}\n`;
+                            }
+                        })
+
+                    }
+
+                    if (mac_info) {
+                        let order = [
+                            "enp1s0f0",
+                            "enp1s0f2",
+                            "enp1s0f3",
+                        ]
+                        // 對應顯示名稱
+                        let nameMap = {
+                            "enp1s0f0": "Eth1",
+                            "enp1s0f2": "Eth2",
+                            "enp1s0f3": "Eth3"
+                        };
+
+                        order.forEach(key => {
+                            if (mac_info.hasOwnProperty(key)) {
+                                 let displayName = nameMap[key] || key; // 預設用原名
+                                r1 += `${displayName},${mac_info[key]}\n`;
                             }
                         })
 
@@ -1561,16 +1593,25 @@ styles %}
                     if (fw_info_version) {
                         let order = [
                             "WebUI",
-                            "SCC_API",
-                            "SNMP",
-                            "Modbus_Server",
-                            "Redfish_Server",
+                            // "SCC_API",
+                            // "SNMP",
+                            // "Modbus_Server",
+                            // "Redfish_Server",
                             "PLC",
+                            "Release_Time"
                         ]
+                        // 對應顯示名稱
+                        let nameMap = {
+                            "WebUI": "System Software",
+                            "PLC": "Control Firmware",
+                            "Release_Time": "Release_Date"
+                        };
 
                         order.forEach(key => {
                             if (fw_info_version.hasOwnProperty(key)) {
-                                r1 += `${key},${fw_info_version[key]}\n`;
+                                 let displayName = nameMap[key] || key; // 預設用原名
+
+                                r1 += `${displayName},${fw_info_version[key]}\n`;
                             }
                         })
 

@@ -3031,6 +3031,14 @@ block styles %}
         <div class="content">
             <div class="row">
                 <div class="col-4">
+                    <p>SMC:</p>
+                </div>
+                <div class="col-2">
+                    <input id="SMC" class="form-control keyboard_text" data-kioskboard-specialcharacters="true" type="text" placeholder="" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-4">
                     <p>Serial Number:</p>
                 </div>
                 <div class="col-2">
@@ -3213,7 +3221,7 @@ block styles %}
             <div class="row button_box">
                 <div class="col-4"></div>
                 <div class="col-8 btn_box">
-                    <div> 
+                    <div>
                         <button id="apply_timeout_light" class="btn btn-outline-success" style="margin-right: 10px; margin-top: 20px">
                             Apply
                         </button>
@@ -3493,7 +3501,7 @@ block styles %}
             </div> -->
 
             <!-- Rack 6 -->
-            <div class="row"  style="display: none"style="display: none">
+            <div class="row" style="display: none" style="display: none">
                 <div class="col-4">
                     <p>Rack 6 Enable:</p>
                 </div>
@@ -3596,7 +3604,7 @@ block styles %}
         </div>
     </div>
     {% endif %}
-        {% if user == 'superuser' %}
+    {% if user == 'superuser' %}
     <div class="reset_to_factory title" data-default="collapsed" data-label="Restore to factory settings">
         <div class="data-before-trigger"></div>
         <div class="content">
@@ -3655,7 +3663,7 @@ block styles %}
         if (userType == "superuser") {
             user_status = true;
         }
-        if (userType !== "superuser"){
+        if (userType !== "superuser") {
             $(".superuser_set").hide();
         }
         const trapElements = document.querySelectorAll(".trap");
@@ -3707,7 +3715,7 @@ block styles %}
                 });
             });
         }
-        
+
         $.ajax({
             url: "/get_data_engineerMode",
             method: "GET",
@@ -3810,7 +3818,7 @@ block styles %}
                         $("#auto_broken_pressure").val(auto_setting["auto_broken_pressure"]);
                     }
                 }
-                
+
                 for (key in dpt_error_setting) {
                     if (dpt_error_setting.hasOwnProperty(key)) {
                         $(`#${key}`).val(dpt_error_setting[key]);
@@ -3873,7 +3881,7 @@ block styles %}
                         if (json_data.hasOwnProperty(key)) {
                             var value = json_data[key];
                             var element = document.getElementById(key);
-                            if (["SN", "Model", "PartNumber"].includes(key)) {
+                            if (["SMC", "SN", "Model", "PartNumber"].includes(key)) {
                                 element.value = value;
                             }
                         }
@@ -3885,7 +3893,7 @@ block styles %}
                 },
             });
         }
-        if(userType == "superuser" || userType == "root") {
+        if (userType == "superuser" || userType == "root") {
             $.ajax({
                 url: "/get_timeout",
                 method: "GET",
@@ -3903,7 +3911,7 @@ block styles %}
                 },
             });
         }
-        
+
         $("#adjust_apply").click(function () {
             var inputs = {};
             $(".adjust").each(function () {
@@ -3977,30 +3985,30 @@ block styles %}
                 var input_val = $(this).val();
 
                 ///將spare給無spare的值
-                
+
                 var mapping = {
-                        ///T1
-                        "Thr_W_TempClntSplySpare": "Thr_W_TempClntSply",
-                        "Thr_W_Rst_TempClntSplySpare": "Thr_W_Rst_TempClntSply",
-                        "Thr_A_TempClntSplySpare": "Thr_A_TempClntSply",
-                        "Thr_A_Rst_TempClntSplySpare": "Thr_A_Rst_TempClntSply",
-                        ///T2
-                        "Thr_W_TempClntRtnSpare": "Thr_W_TempClntRtn",
-                        "Thr_W_Rst_TempClntRtnSpare": "Thr_W_Rst_TempClntRtn",
-                        "Thr_A_TempClntRtnSpare": "Thr_A_TempClntRtn",
-                        "Thr_A_Rst_TempClntRtnSpare": "Thr_A_Rst_TempClntRtn",
-                        ///P1
-                        "Thr_W_PrsrClntSplySpare": "Thr_W_PrsrClntSply",
-                        "Thr_W_Rst_PrsrClntSplySpare": "Thr_W_Rst_PrsrClntSply",
-                        "Thr_A_PrsrClntSplySpare": "Thr_A_PrsrClntSply",
-                        "Thr_A_Rst_PrsrClntSplySpare": "Thr_A_Rst_PrsrClntSply",
-                        ///P2
-                        "Thr_W_PrsrClntRtnSpare": "Thr_W_PrsrClntRtn",
-                        "Thr_W_Rst_PrsrClntRtnSpare": "Thr_W_Rst_PrsrClntRtn",
-                        "Thr_A_PrsrClntRtnSpare": "Thr_A_PrsrClntRtn",
-                        "Thr_A_Rst_PrsrClntRtnSpare": "Thr_A_Rst_PrsrClntRtn",
-                        
-                    };
+                    ///T1
+                    "Thr_W_TempClntSplySpare": "Thr_W_TempClntSply",
+                    "Thr_W_Rst_TempClntSplySpare": "Thr_W_Rst_TempClntSply",
+                    "Thr_A_TempClntSplySpare": "Thr_A_TempClntSply",
+                    "Thr_A_Rst_TempClntSplySpare": "Thr_A_Rst_TempClntSply",
+                    ///T2
+                    "Thr_W_TempClntRtnSpare": "Thr_W_TempClntRtn",
+                    "Thr_W_Rst_TempClntRtnSpare": "Thr_W_Rst_TempClntRtn",
+                    "Thr_A_TempClntRtnSpare": "Thr_A_TempClntRtn",
+                    "Thr_A_Rst_TempClntRtnSpare": "Thr_A_Rst_TempClntRtn",
+                    ///P1
+                    "Thr_W_PrsrClntSplySpare": "Thr_W_PrsrClntSply",
+                    "Thr_W_Rst_PrsrClntSplySpare": "Thr_W_Rst_PrsrClntSply",
+                    "Thr_A_PrsrClntSplySpare": "Thr_A_PrsrClntSply",
+                    "Thr_A_Rst_PrsrClntSplySpare": "Thr_A_Rst_PrsrClntSply",
+                    ///P2
+                    "Thr_W_PrsrClntRtnSpare": "Thr_W_PrsrClntRtn",
+                    "Thr_W_Rst_PrsrClntRtnSpare": "Thr_W_Rst_PrsrClntRtn",
+                    "Thr_A_PrsrClntRtnSpare": "Thr_A_PrsrClntRtn",
+                    "Thr_A_Rst_PrsrClntRtnSpare": "Thr_A_Rst_PrsrClntRtn",
+
+                };
                 // 檢查是否在映射中
                 if (mapping[input_id]) {
                     // 如果 id 在映射中，則抓取對應的 value
@@ -4172,12 +4180,14 @@ block styles %}
         });
 
         $("#version_apply").click(function () {
+            var smc = $('#SMC').val();
             var sn = $("#SN").val();
             var model = $("#Model").val();
             // var version = $("#Version").val();
             var partNumber = $("#PartNumber").val();
 
             var dataToSend = {
+                SMC: smc,
                 SN: sn,
                 Model: model,
                 // Version: version,
@@ -4619,7 +4629,7 @@ block styles %}
                 type: "POST",
                 url: "/auto_mode_setting_apply",
                 data: JSON.stringify({
-                    auto_mode_fan:auto_mode_fan
+                    auto_mode_fan: auto_mode_fan
                 }),
                 success: function (response) {
                     Swal.fire({
@@ -4653,13 +4663,13 @@ block styles %}
                 },
             });
         });
-        
+
         $("#dpt_error_setting_apply").click(function () {
             let dpt_error_fan = Number($("#dpt_error_fan").val());
             let dpt_error_t1 = Number($("#dpt_error_t1").val());
 
 
-            if (!Number.isInteger(dpt_error_fan) ||!Number.isInteger(dpt_error_t1)) {
+            if (!Number.isInteger(dpt_error_fan) || !Number.isInteger(dpt_error_t1)) {
                 Swal.fire({
                     title: "Error",
                     text: "Please Enter Integers Only",
@@ -5525,7 +5535,7 @@ block styles %}
                 }
             });
         });
-        
+
         $("#resetDptError").click(function () {
             Swal.fire({
                 title: "Confirm to proceed",
@@ -5666,13 +5676,13 @@ block styles %}
                 leakage_sensor_5_switch = false;
             }
 
-            if(userType === "superuser"){
+            if (userType === "superuser") {
                 combined_data = {
                     median_switch: median_switch,
                     coolant_quality_meter_switch: coolant_quality_meter_switch,
                     fan_count_switch: fan_count_switch,
                     liquid_level_1_switch: liquid_level_1_switch,
-                    liquid_level_2_switch: liquid_level_2_switch, 
+                    liquid_level_2_switch: liquid_level_2_switch,
                     liquid_level_3_switch: liquid_level_3_switch,
                     leakage_sensor_1_switch: leakage_sensor_1_switch,
                     leakage_sensor_2_switch: leakage_sensor_2_switch,
@@ -5707,7 +5717,7 @@ block styles %}
                         console.error("Error fetching data:", error);
                     },
                 });
-            }else if(userType === "root"){
+            } else if (userType === "root") {
                 combined_data = {
                     leakage_sensor_1_switch: leakage_sensor_1_switch,
                     leakage_sensor_2_switch: leakage_sensor_2_switch,

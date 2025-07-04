@@ -1,6 +1,1 @@
-{
-    "SN": "130001",
-    "Model": "CDU 150kW",
-    "Version": "1",
-    "PartNumber": "N/A"
-}
+{"SN": "130001", "Model": "CDU 150kW", "Version": "1", "PartNumber": "N/A", "SMC": "12ABC"}

@@ -536,5 +536,25 @@
         "command_temperature": 0.0,
         "feedback_temperature": 0.0,
         "temperature_output": 0.0
+    },
+    "fan_power": {
+        "Fan1": 0.0,
+        "Fan2": 0.0,
+        "Fan3": 0.0,
+        "Fan4": 0.0,
+        "Fan5": 0.0,
+        "Fan6": 0.0,
+        "Fan7": 0.0,
+        "Fan8": 0.0
+    },
+    "fan_rpm": {
+        "Fan1": 0.0,
+        "Fan2": 0.0,
+        "Fan3": 0.0,
+        "Fan4": 0.0,
+        "Fan5": 0.0,
+        "Fan6": 0.0,
+        "Fan7": 0.0,
+        "Fan8": 0.0
     }
 }

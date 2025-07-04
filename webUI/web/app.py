@@ -1,22 +1,24 @@
 # 標準函式庫
 import csv
+from collections import OrderedDict
 import datetime as dt
 from datetime import datetime
 import glob
+from io import BytesIO
 import ipaddress
 import json
 import logging
 import math
 import os
 import platform
+import psutil
 import shutil
 import struct
+import socket
 import subprocess
 import threading
 import time
 import zipfile
-from collections import OrderedDict
-from io import BytesIO
 
 # 第三方套件
 import requests
@@ -4296,11 +4298,17 @@ def read_modbus_data():
                     if sensorData["error"]["PrsrClntRtnSpare_broken"]
                     else "-"
                 )
+                
+                p3_num = (
+                    sensorData["value"]["prsr_fltIn"]
+                    if not sensorData["error"]["PrsrFltIn_broken"]
+                    else "-"
+                )
 
-                if p1_num == "-" or p2_num == "-":
+                if p3_num == "-" or p2_num == "-":
                     logData["value"]["prsr_diff"] = "-"
                 else:
-                    logData["value"]["prsr_diff"] = round((p1_num - p2_num), 1)
+                    logData["value"]["prsr_diff"] = round((p3_num - p2_num), 1)
 
                 for key in ctr_data["value"]:
                     if key in logData["setting"]:
@@ -6529,7 +6537,8 @@ def write_version():
     if os.path.exists(f"{web_path}/fw_info.json"):
         with open(f"{web_path}/fw_info.json", "r") as file:
             FW_Info = json.load(file)
-
+            
+    FW_Info["SMC"] = data["SMC"]
     FW_Info["SN"] = data["SN"]
     FW_Info["Model"] = data["Model"]
     # FW_Info["Version"] = data["Version"]
@@ -8246,6 +8255,37 @@ def get_error_data():
     return jsonify(data)
 
 
+@app.route("/get_mac_address")
+def get_mac_address():
+    try:
+        target_interfaces = {"enp1s0f0", "enp1s0f2", "enp1s0f3"}
+        mac_addresses = {}
+
+        for interface, snics in psutil.net_if_addrs().items():
+            if interface in target_interfaces:
+                for snic in snics:
+                    if snic.family == socket.AF_PACKET:
+                        mac_addresses[interface] = snic.address
+
+        if mac_addresses:
+            # journal_logger.info(f"Selected MAC addresses: {mac_addresses}")
+
+            with open(f"{web_path}/json/mac_info.json", "w") as file:
+                json.dump(mac_addresses, file, indent=4)
+            return jsonify(mac_addresses)
+        else:
+            with open(f"{web_path}/json/mac_info.json", "w") as file:
+                file.write("[]")
+            journal_logger.info("error No target MAC address found")
+            
+            return jsonify({"error": "No target MAC address found"}), 404
+
+    except Exception as e:
+        with open(f"{web_path}/json/mac_info.json", "w") as file:
+            file.write("[]")
+        journal_logger.info(f"Error getting MAC address: {e}")
+        return jsonify({"error": "Unable to retrieve MAC address"}), 500 
+
 @app.route("/get_inspection_result")
 @login_required
 def get_inspection_result():
@@ -8336,7 +8376,10 @@ def get_inspection_result():
     with open(f"{web_path}/fw_info_version.json", "r") as file:
         fw_info_version = json.load(file)
         fw_info_version["PLC"]= sensorData["plc_version"]
-
+        
+    with open(f"{web_path}/json/mac_info.json", "r") as file:
+        mac_info = json.load(file)
+    
     whole_data = {
         "result_data": result_data,
         "inspection_value": inspection_value,
@@ -8347,6 +8390,7 @@ def get_inspection_result():
         "fw_info_data": fw_info_data,
         "fw_info_version": fw_info_version,
         "ver_switch": ver_switch,
+        "mac_info": mac_info,
     }
     return jsonify(whole_data)
 
