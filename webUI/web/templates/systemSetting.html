@@ -741,34 +741,27 @@ block styles %}
                         data: JSON.stringify({ value: selectedTime }),
                         success: function (response) {
                             console.log(response);
-                            Swal.fire({
-                                title: "Success",
-                                text: "Please reboot PC again.",
-                                icon: "success",
-                                confirmButtonText: "OK",
-                            }).then(() => {
-                                $.ajax({
-                                    url: "/reboot",
-                                    method: "GET",
-                                    success: function (response) {
-                                        console.log("電腦已關閉");
-                                        Swal.fire({
-                                            title: "Success",
-                                            text: "Restarting System",
-                                            icon: "success",
-                                            confirmButtonText: "OK",
-                                        });
-                                    },
-                                    error: function (xhr, statusText) {
-                                        console.log("Error:", statusText);
-                                        // Swal.fire({
-                                        //     title: "Error",
-                                        //     text: "Reboot failed. Please try again.",
-                                        //     icon: "error",
-                                        //     confirmButtonText: "OK",
-                                        // });
-                                    },
-                                });
+                            $.ajax({
+                                url: "/reboot",
+                                method: "GET",
+                                success: function (response) {
+                                    console.log("電腦已關閉");
+                                    Swal.fire({
+                                        title: "Success",
+                                        text: "Restarting System",
+                                        icon: "success",
+                                        confirmButtonText: "OK",
+                                    });
+                                },
+                                error: function (xhr, statusText) {
+                                    console.log("Error:", statusText);
+                                    // Swal.fire({
+                                    //     title: "Error",
+                                    //     text: "Reboot failed. Please try again.",
+                                    //     icon: "error",
+                                    //     confirmButtonText: "OK",
+                                    // });
+                                },
                             });
                         },
                         error: function (xhr, status, error) {

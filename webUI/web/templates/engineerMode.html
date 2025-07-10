@@ -4226,7 +4226,7 @@ block styles %}
                         if (json_data.hasOwnProperty(key)) {
                             var value = json_data[key];
                             var element = document.getElementById(key);
-                            if (["SN", "Model", "PartNumber"].includes(key)) {
+                            if (["SN", "Model", "PartNumber", "SMC"].includes(key)) {
                                 element.value = value;
                             }
                         }

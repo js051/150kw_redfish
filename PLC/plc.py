@@ -473,6 +473,16 @@ inspection_data = {
         "fan6_error": 1,
         "fan7_error": 1,
         "fan8_error": 1,
+        "pump_test1": 1,
+        "pump_test2": 1,
+        "pump_test3": 1,
+        "pump_test4": 1,
+        "pump_test5": 1,
+        "pump_test6": 1,
+        "pump_test7": 1,
+        "fan_test1": 1,
+        "fan_test2": 1,
+        "fan_test3": 1,
     },
     "set": {"total_inspect_time": 95},
     "step": 1,
@@ -1618,7 +1628,7 @@ def cvt_float_byte(value):
     word1, word2 = struct.unpack(">HH", float_as_bytes)
     return word1, word2
 
-
+###改變現在狀態(未送出給寄存器)
 def change_progress(key, status):
     if status == "standby":
         inspection_data["prog"][key] = 4
@@ -1633,7 +1643,7 @@ def change_progress(key, status):
         inspection_data["prog"][key] = 1
 
 
-###inspection現在的狀態
+###給寄存器inspection現在的狀態及結果
 def send_all(number, key):
     try:
         with ModbusTcpClient(
@@ -1649,7 +1659,18 @@ def send_all(number, key):
     except Exception as e:
         print(f"result write-in:{e}")
 
-
+###給寄存器inspection現在的狀態
+def send_progress(number, key):
+    try:
+        with ModbusTcpClient(
+            host=modbus_host, port=modbus_port, unit=modbus_slave_id
+        ) as client:
+            # client.write_registers((800 + number), inspection_data["prog"][key])
+            client.write_registers((2100 + number), inspection_data["prog"][key])
+    except Exception as e:
+        print(f"result write-in:{e}")
+        
+        
 # def send_all_overload(number, key):
 #     try:
 #         with ModbusTcpClient(
@@ -1665,15 +1686,6 @@ def send_all(number, key):
 #         print(f"result write-in:{e}")
 
 
-def send_progress(number, key):
-    try:
-        with ModbusTcpClient(
-            host=modbus_host, port=modbus_port, unit=modbus_slave_id
-        ) as client:
-            # client.write_registers((800 + number), inspection_data["prog"][key])
-            client.write_registers((2100 + number), inspection_data["prog"][key])
-    except Exception as e:
-        print(f"result write-in:{e}")
 
 
 def thr_check():
@@ -1904,13 +1916,16 @@ def check_both_warning_p3(
 ):
     short_key = thr_key_low.split("_")[2]
     status = status_data[short_key]
-    # inv["inv1"] = True
     prefix = "W_" if type == "W" else "A_"
     try:
         if time_data["check"][prefix + short_key]:
             if (
                 thrshd_data[rst_key_low] < status and status < thrshd_data[rst_key_high]
-            ) or (not inv["inv1"] and not inv["inv2"] and not inv["inv3"]):
+            ) or (
+                not ((raw_485_data["Inv1_Freq"] / 200) > 25)
+                and not ((raw_485_data["Inv2_Freq"] / 200) > 25)
+                and not ((raw_485_data["Inv3_Freq"] / 200) > 25)
+            ):
                 time_data["check"][prefix + short_key] = False
                 time_data["condition"]["high"][prefix + short_key] = False
                 time_data["condition"]["low"][prefix + short_key] = False
@@ -1938,7 +1953,11 @@ def check_both_warning_p3(
         else:
             if (
                 status > thrshd_data[thr_key_high] or status < thrshd_data[thr_key_low]
-            ) and (inv["inv1"] or inv["inv2"] or inv["inv3"]):
+            ) and (
+                (raw_485_data["Inv1_Freq"] / 200) > 25
+                or (raw_485_data["Inv2_Freq"] / 200) > 25
+                or (raw_485_data["Inv3_Freq"] / 200) > 25
+            ):
                 time_data["start"][prefix + short_key] = time.perf_counter()
                 time_data["check"][prefix + short_key] = True
             else:
@@ -1980,7 +1999,9 @@ def check_low_warning_f1(thr_key, rst_key, delay_key, type):
     try:
         if time_data["check"][prefix + short_key]:
             if (status_data[short_key] > thrshd_data[rst_key]) or (
-                not inv["inv1"] and not inv["inv2"] and not inv["inv3"]
+                not ((raw_485_data["Inv1_Freq"] / 200) > 25)
+                and not ((raw_485_data["Inv2_Freq"] / 200) > 25)
+                and not ((raw_485_data["Inv3_Freq"] / 200) > 25)
             ):
                 time_data["check"][prefix + short_key] = False
                 if prefix.startswith("W_"):
@@ -2005,7 +2026,9 @@ def check_low_warning_f1(thr_key, rst_key, delay_key, type):
                     return True
         else:
             if (status_data[short_key] < thrshd_data[thr_key]) and (
-                inv["inv1"] or inv["inv2"] or inv["inv3"]
+                ((raw_485_data["Inv1_Freq"] / 200) > 25)
+                or ((raw_485_data["Inv2_Freq"] / 200) > 25)
+                or ((raw_485_data["Inv3_Freq"] / 200) > 25)
             ):
                 time_data["start"][prefix + short_key] = time.perf_counter()
                 time_data["check"][prefix + short_key] = True
@@ -2812,10 +2835,6 @@ def set_warning_registers(mode):
         "Delay_ClntFlow",
         "A",
     )
-    # print(f'warning_data["alert"]["ClntFlow"]{warning_data["alert"]}')
-    # print(f'inv["inv1"]{inv["inv1"]}')
-    # print(f'inv["inv2"]{inv["inv2"]}')
-    # print(f'inv["inv3"]{inv["inv3"]}')
 
     check_dewPt_warning(
         "Thr_W_DewPoint",
@@ -3625,36 +3644,36 @@ def reset_inspect_btn():
         print(f"close inspection:{e}")
 
 
-def only_send_inspection_data(number, progress_value):
-    try:
-        with ModbusTcpClient(
-            host=modbus_host, port=modbus_port, unit=modbus_slave_id
-        ) as client:
-            # client.write_registers((800 + number), progress_value)
-            client.write_registers((2100 + number), progress_value)
-    except Exception as e:
-        print(f"result write-in:{e}")
+# def only_send_inspection_data(number, progress_value):
+#     try:
+#         with ModbusTcpClient(
+#             host=modbus_host, port=modbus_port, unit=modbus_slave_id
+#         ) as client:
+#             # client.write_registers((800 + number), progress_value)
+#             client.write_registers((2100 + number), progress_value)
+#     except Exception as e:
+#         print(f"result write-in:{e}")
 
 
-def send_inspection_data(number, progress_value, result_value):
-    try:
-        with ModbusTcpClient(
-            host=modbus_host, port=modbus_port, unit=modbus_slave_id
-        ) as client:
-            # client.write_registers((800 + number), progress_value)
-            client.write_registers((2100 + number), progress_value)
-    except Exception as e:
-        print(f"result write-in:{e}")
+# def send_inspection_data(number, progress_value, result_value):
+#     try:
+#         with ModbusTcpClient(
+#             host=modbus_host, port=modbus_port, unit=modbus_slave_id
+#         ) as client:
+#             # client.write_registers((800 + number), progress_value)
+#             client.write_registers((2100 + number), progress_value)
+#     except Exception as e:
+#         print(f"result write-in:{e}")
 
-    try:
-        with ModbusTcpClient(
-            host=modbus_host, port=modbus_port, unit=modbus_slave_id
-        ) as client:
-            change_result_value = [1 if result_value else 0]
-            # client.write_registers((750 + number), change_result_value)
-            client.write_registers((2000 + number), change_result_value)
-    except Exception as e:
-        print(f"result write-in:{e}")
+#     try:
+#         with ModbusTcpClient(
+#             host=modbus_host, port=modbus_port, unit=modbus_slave_id
+#         ) as client:
+#             change_result_value = [1 if result_value else 0]
+#             # client.write_registers((750 + number), change_result_value)
+#             client.write_registers((2000 + number), change_result_value)
+#     except Exception as e:
+#         print(f"result write-in:{e}")
 
 
 def change_inspect_time():
@@ -4851,6 +4870,7 @@ def control():
                 pump_open_time = 20
                 fan_open_time = 20
                 error_check_time = 18
+                pump_test_time = 300
                 overload_index = {
                     "Inv": [1, 2, 3],
                     "Fan": [1, 2],
@@ -4962,9 +4982,7 @@ def control():
                             bit_output_regs["mc1"] = True
                             bit_output_regs["mc2"] = True
                             bit_output_regs["mc3"] = True
-                            # change_progress("p1_speed", "standby")
-                            # change_progress("p2_speed", "standby")
-                            # change_progress("p3_speed", "standby")
+
                             speed = translate_pump_speed(40)
                             set_pump1_speed(speed)
                             set_pump2_speed(speed)
@@ -5173,22 +5191,12 @@ def control():
                             inspection_data["mid_time"] = inspection_data["end_time"]
 
                         if inspection_data["step"] == 3.5:
-                            print("3.5 測 liquid & power")
+                            print("3.5 停pump")
                             # journal_logger.info("5.5 測 liquid & power")
 
                             stop_p1()
                             stop_p2()
                             stop_p3()
-
-                            for k, level in enumerate(level_sw):
-                                inspection_data["result"][level] = not level_sw[level]
-                                change_progress(level, "finish")
-                                send_all(37 + k, level)
-
-                            # for x, key in enumerate(inspection_data["result"], start=0):
-                            #     if "_broken" in key:
-                            #         change_progress(key, "standby")
-                            #         send_progress(4 + x, key)
 
                             inspection_data["step"] += 0.5
 
@@ -5393,7 +5401,7 @@ def control():
                                     change_progress(speed_key, "finish")
 
                             stop_fan()
-                            inspection_data["step"] += 1
+                            inspection_data["step"] += 0.5
                             inspection_data["end_time"] = time.time()
                             inspection_data["mid_time"] = inspection_data["end_time"]
                             send_all(43, "fan1_speed")
@@ -5405,50 +5413,23 @@ def control():
                             send_all(49, "fan7_speed")
                             send_all(50, "fan8_speed")
 
-                        #     print("5. 測 f1")
-                        #     max_f1 = max(f1_data)
-                        #     ### 測試是否換成broken
-                        #     # if warning_data["error"]["coolant_flow_rate_communication"]:
-                        #     if warning_data["error"]["Clnt_Flow_broken"]:
-                        #         max_f1 = 0
 
-                        #     write_measured_data(7, max_f1)
-                        #     print(f"F1 結果：{max_f1}")
-
-                        #     inspection_data["result"]["f1"] = all(
-                        #         inspection_data["result"]["f1"]
-                        #     )
-
-                        #     change_progress("f1", "finish")
-                        #     send_all(3, "f1")
-
-                        #     inspection_data["step"] += 0.5
-                        #     inspection_data["end_time"] = time.time()
-                        #     inspection_data["mid_time"] = inspection_data["end_time"]
-
-                        #     for x, level in enumerate(level_sw):
-                        #         change_progress(level, "standby")
-                        #         send_progress(37 + x, level)
-
-                        # if inspection_data["step"] == 5.5:
-                        #     print("5.5 測 liquid & power")
+                        if inspection_data["step"] == 5.5:
+                            print("5.5 測 liquid & power")
                         #     journal_logger.info("5.5 測 liquid & power")
 
-                        #     stop_p1()
-                        #     stop_p2()
-                        #     stop_p3()
+                            for k, level in enumerate(level_sw):
+                                inspection_data["result"][level] = not level_sw[level]
+                                change_progress(level, "finish")
+                                send_all(36 + k, level)
 
-                        #     for k, level in enumerate(level_sw):
-                        #         inspection_data["result"][level] = not level_sw[level]
-                        #         change_progress(level, "finish")
-                        #         send_all(37 + k, level)
-
+                              ###讓broken standby
                         #     for x, key in enumerate(inspection_data["result"], start=0):
                         #         if "_broken" in key:
                         #             change_progress(key, "standby")
                         #             send_progress(4 + x, key)
 
-                        #     inspection_data["step"] += 0.5
+                            inspection_data["step"] += 0.5
 
                         if inspection_data["step"] == 6:
                             print("6. 測 broken")
@@ -5646,7 +5627,13 @@ def control():
                                                 not value
                                             )
                             if int(diff) > error_check_time:
-                                inspection_data["step"] = 12
+                                inspection_data["step"] +=1
+                                
+                                
+                                change_progress("pump_test1", "standby")
+                                send_progress(67, "pump_test1")
+                                
+                                
                                 for key, index_list in error_index.items():
                                     for i in index_list:
                                         if key == "Inv":
@@ -5667,9 +5654,470 @@ def control():
                                             )
                                             change_progress(key_name, "finish")
                                             send_all(58 + i, key_name)
+                                            
+                        if inspection_data["step"] == 10:
+                            print(f"10. 測pump1, 2, 3 全開60% ：{pump_test_time} 秒")
+                            
+                            bit_output_regs["mc1"] = True
+                            bit_output_regs["mc2"] = True
+                            bit_output_regs["mc3"] = True
 
+                            speed = translate_pump_speed(60)
+                            set_pump1_speed(speed)
+                            set_pump2_speed(speed)
+                            set_pump3_speed(speed)
+                            
+                            
+                            test_t1_1 = status_data["TempClntSply"]
+                            test_ac_1 = status_data["AC"]
+                            test_av_1 = raw_485_data_eletricity["average_voltage"]
+                            test_flow_rate_1 = status_data["ClntFlow"]
+                            test_prsr_rtn_1 = status_data["PrsrClntRtn"]  
+                            test_prsr_sup_1 = status_data["PrsrClntSply"]   
+                            
+                            ####2900開始寫measured data
+                            write_measured_data(2000, test_t1_1) 
+                            write_measured_data(2002, test_ac_1)
+                            write_measured_data(2004, test_av_1)
+                            write_measured_data(2006, test_flow_rate_1)
+                            write_measured_data(2008, test_prsr_rtn_1)
+                            write_measured_data(2010, test_prsr_sup_1)
+                             
+                            
+                            
+                            inspection_data["end_time"] = time.time()
+                            diff = (
+                                inspection_data["end_time"]
+                                - inspection_data["mid_time"]
+                            )
+                            if diff >= pump_test_time:
+                                inspection_data["step"] += 1
+                                
+                                change_progress("pump_test1", "finish")
+                                send_progress(67, "pump_test1")
+                                
+                                change_progress("pump_test2", "standby")
+                                send_progress(68, "pump_test2")
+                                
+                                inspection_data["mid_time"] = inspection_data[
+                                    "end_time"
+                                ]
+
+                            
+                            
+                        if inspection_data["step"] == 11:
+                            print(f"11. 測pump1, 2 :40% ：{pump_test_time} 秒")
+                            
+
+                            speed = translate_pump_speed(40)
+                            set_pump1_speed(speed)
+                            set_pump2_speed(speed)
+                            set_pump3_speed(0)
+
+                            test_t1_2 = status_data["TempClntSply"]
+                            test_ac_2 = status_data["AC"]
+                            test_av_2 = raw_485_data_eletricity["average_voltage"]
+                            test_flow_rate_2 = status_data["ClntFlow"]
+                            test_prsr_rtn_2 = status_data["PrsrClntRtn"]  
+                            test_prsr_sup_2 = status_data["PrsrClntSply"]   
+                            
+                            ####2900開始寫measured data
+                            write_measured_data(2012, test_t1_2) 
+                            write_measured_data(2014, test_ac_2)
+                            write_measured_data(2016, test_av_2)
+                            write_measured_data(2018, test_flow_rate_2)
+                            write_measured_data(2020, test_prsr_rtn_2)
+                            write_measured_data(2022, test_prsr_sup_2)
+                             
+                            
+                            
+                            inspection_data["end_time"] = time.time()
+                            diff = (
+                                inspection_data["end_time"]
+                                - inspection_data["mid_time"]
+                            )
+                            if diff >= pump_test_time:
+                                inspection_data["step"] += 1
+                                change_progress("pump_test2", "finish")
+                                send_progress(68, "pump_test2")
+                                
+                                change_progress("pump_test3", "standby")
+                                send_progress(69, "pump_test3")
+                                
+                                inspection_data["mid_time"] = inspection_data[
+                                    "end_time"
+                                ]
+
+                            
                         if inspection_data["step"] == 12:
-                            print("12. 最後收尾")
+                            print(f"12. 測pump1, 2 :80% ：{pump_test_time} 秒")                     
+                            
+                            
+                            speed = translate_pump_speed(80)
+                            set_pump1_speed(speed)
+                            set_pump2_speed(speed)
+                            set_pump3_speed(0)
+
+                            test_t1_3 = status_data["TempClntSply"]
+                            test_ac_3 = status_data["AC"]
+                            test_av_3 = raw_485_data_eletricity["average_voltage"]
+                            test_flow_rate_3 = status_data["ClntFlow"]
+                            test_prsr_rtn_3 = status_data["PrsrClntRtn"]  
+                            test_prsr_sup_3 = status_data["PrsrClntSply"]   
+                            
+                            ####2900開始寫measured data
+                            write_measured_data(2024, test_t1_3) 
+                            write_measured_data(2026, test_ac_3)
+                            write_measured_data(2028, test_av_3)
+                            write_measured_data(2030, test_flow_rate_3)
+                            write_measured_data(2032, test_prsr_rtn_3)
+                            write_measured_data(2034, test_prsr_sup_3)
+                             
+                            
+                            print(f'inspection_data["step"]:{inspection_data["step"]}')
+                            
+                            inspection_data["end_time"] = time.time()
+                            diff = (
+                                inspection_data["end_time"]
+                                - inspection_data["mid_time"]
+                            )
+                            if diff >= pump_test_time:
+                                inspection_data["step"] += 1
+                                
+                                # print(f'inspection_data["step"]:{inspection_data["step"]}')
+                                
+                                change_progress("pump_test3", "finish")
+                                send_progress(69, "pump_test3")
+                                
+                                change_progress("pump_test4", "standby")
+                                send_progress(70, "pump_test4")
+                                
+                                inspection_data["mid_time"] = inspection_data[
+                                    "end_time"
+                                ]
+
+
+                            
+                        if inspection_data["step"] == 13:
+                            print(f"13 測pump1, 3 :40% ：{pump_test_time} 秒")
+                            
+                            
+                            speed = translate_pump_speed(40)
+                            set_pump1_speed(speed)
+                            set_pump2_speed(0)
+                            set_pump3_speed(speed)
+                            
+                            test_t1_4 = status_data["TempClntSply"]
+                            test_ac_4 = status_data["AC"]
+                            test_av_4 = raw_485_data_eletricity["average_voltage"]
+                            test_flow_rate_4 = status_data["ClntFlow"]
+                            test_prsr_rtn_4 = status_data["PrsrClntRtn"]  
+                            test_prsr_sup_4 = status_data["PrsrClntSply"]   
+                            
+                            ####2900開始寫measured data
+                            write_measured_data(2036, test_t1_4) 
+                            write_measured_data(2038, test_ac_4)
+                            write_measured_data(2040, test_av_4)
+                            write_measured_data(2042, test_flow_rate_4)
+                            write_measured_data(2044, test_prsr_rtn_4)
+                            write_measured_data(2046, test_prsr_sup_4)
+                             
+                            
+                            
+                            inspection_data["end_time"] = time.time()
+                            diff = (
+                                inspection_data["end_time"]
+                                - inspection_data["mid_time"]
+                            )
+                            if diff >= pump_test_time:
+                                inspection_data["step"] += 1
+                                
+                                change_progress("pump_test4", "finish")
+                                send_progress(70, "pump_test4")
+                                
+                                change_progress("pump_test5", "standby")
+                                send_progress(71, "pump_test5")
+                                
+                                inspection_data["mid_time"] = inspection_data[
+                                    "end_time"
+                                ]
+
+
+                            
+                        if inspection_data["step"] == 14:
+                            print(f"14 測pump1, 3 :80% ：{pump_test_time} 秒")
+                            
+                            speed = translate_pump_speed(80)
+                            set_pump1_speed(speed)
+                            set_pump2_speed(0)
+                            set_pump3_speed(speed)
+                            
+                            test_t1_5 = status_data["TempClntSply"]
+                            test_ac_5 = status_data["AC"]
+                            test_av_5 = raw_485_data_eletricity["average_voltage"]
+                            test_flow_rate_5 = status_data["ClntFlow"]
+                            test_prsr_rtn_5 = status_data["PrsrClntRtn"]  
+                            test_prsr_sup_5 = status_data["PrsrClntSply"]   
+                            
+                            ####2900開始寫measured data
+                            write_measured_data(2048, test_t1_5) 
+                            write_measured_data(2050, test_ac_5)
+                            write_measured_data(2052, test_av_5)
+                            write_measured_data(2054, test_flow_rate_5)
+                            write_measured_data(2056, test_prsr_rtn_5)
+                            write_measured_data(2058, test_prsr_sup_5)
+                             
+                            
+                            
+                            inspection_data["end_time"] = time.time()
+                            diff = (
+                                inspection_data["end_time"]
+                                - inspection_data["mid_time"]
+                            )
+                            if diff >= pump_test_time:
+                                inspection_data["step"] += 1
+                                
+                                change_progress("pump_test5", "finish")
+                                send_progress(71, "pump_test5")
+                                
+                                change_progress("pump_test6", "standby")
+                                send_progress(72, "pump_test6")
+                                
+                                inspection_data["mid_time"] = inspection_data[
+                                    "end_time"
+                                ]
+
+
+                            
+                            
+                        if inspection_data["step"] == 15:
+                            print(f"15 測pump2, 3 :40% ：{pump_test_time} 秒")
+                            
+                            speed = translate_pump_speed(40)
+                            set_pump1_speed(0)
+                            set_pump2_speed(speed)
+                            set_pump3_speed(speed)
+                             
+                            test_t1_6 = status_data["TempClntSply"]
+                            test_ac_6 = status_data["AC"]
+                            test_av_6 = raw_485_data_eletricity["average_voltage"]
+                            test_flow_rate_6 = status_data["ClntFlow"]
+                            test_prsr_rtn_6 = status_data["PrsrClntRtn"]  
+                            test_prsr_sup_6 = status_data["PrsrClntSply"]   
+                            
+                            ####2900開始寫measured data
+                            write_measured_data(2060, test_t1_6) 
+                            write_measured_data(2062, test_ac_6)
+                            write_measured_data(2064, test_av_6)
+                            write_measured_data(2066, test_flow_rate_6)
+                            write_measured_data(2068, test_prsr_rtn_6)
+                            write_measured_data(2070, test_prsr_sup_6)
+                             
+                            
+                            
+                            inspection_data["end_time"] = time.time()
+                            diff = (
+                                inspection_data["end_time"]
+                                - inspection_data["mid_time"]
+                            )
+                            if diff >= pump_test_time:
+                                inspection_data["step"] += 1
+                                change_progress("pump_test6", "finish")
+                                send_progress(72, "pump_test6")
+                                
+                                change_progress("pump_test7", "standby")
+                                send_progress(73, "pump_test7")
+                                
+                                inspection_data["mid_time"] = inspection_data[
+                                    "end_time"
+                                ]
+
+
+
+
+                            
+                        if inspection_data["step"] == 16:
+                            print(f"16 測pump2, 3 :80% ：{pump_test_time} 秒") 
+                            
+                            
+                            speed = translate_pump_speed(80)
+                            set_pump1_speed(0)
+                            set_pump2_speed(speed)
+                            set_pump3_speed(speed) 
+                            
+                             
+                            test_t1_7 = status_data["TempClntSply"]
+                            test_ac_7 = status_data["AC"]
+                            test_av_7 = raw_485_data_eletricity["average_voltage"]
+                            test_flow_rate_7 = status_data["ClntFlow"]
+                            test_prsr_rtn_7 = status_data["PrsrClntRtn"]  
+                            test_prsr_sup_7 = status_data["PrsrClntSply"]   
+                            
+                            ####2900開始寫measured data
+                            write_measured_data(2072, test_t1_7) 
+                            write_measured_data(2074, test_ac_7)
+                            write_measured_data(2076, test_av_7)
+                            write_measured_data(2078, test_flow_rate_7)
+                            write_measured_data(2080, test_prsr_rtn_7)
+                            write_measured_data(2082, test_prsr_sup_7)
+                             
+                            
+                            
+                            inspection_data["end_time"] = time.time()
+                            diff = (
+                                inspection_data["end_time"]
+                                - inspection_data["mid_time"]
+                            )
+                            if diff >= pump_test_time:
+                                inspection_data["step"] += 1
+                                change_progress("pump_test7", "finish")
+                                send_progress(73, "pump_test7")
+                                
+                                ##關pump
+                                set_pump1_speed(0)
+                                set_pump2_speed(0)
+                                set_pump3_speed(0) 
+                                                            
+                                change_progress("fan_test1", "standby")
+                                send_progress(74, "fan_test1")
+                                
+                                inspection_data["mid_time"] = inspection_data[
+                                    "end_time"
+                                ]
+
+
+                            
+                            
+                        if inspection_data["step"] == 17:
+                            print(f"17. 測風扇全開:15% ：{pump_test_time} 秒") 
+                                                       
+                            bit_output_regs["mc_fan1"] = True
+                            bit_output_regs["mc_fan2"] = True
+                            
+                            speed = translate_fan_speed(15)
+                            set_f1(speed)
+                            set_f2(speed)
+                            set_f3(speed)
+                            set_f4(speed)
+                            set_f5(speed)
+                            set_f6(speed)
+                            set_f7(speed)
+                            set_f8(speed)
+                            
+                            test_ac_8 = status_data["AC"]
+                            test_ap_1 = raw_485_data_eletricity["apparent_power"]
+                            
+                            write_measured_data(2084, test_ac_8) 
+                            write_measured_data(2086, test_ap_1)
+                            
+                                                        
+                            inspection_data["end_time"] = time.time()
+                            diff = (
+                                inspection_data["end_time"]
+                                - inspection_data["mid_time"]
+                            )
+                            if diff >= pump_test_time:
+                                inspection_data["step"] += 1
+                                
+                                change_progress("fan_test1", "finish")
+                                send_progress(74, "fan_test1")
+                                
+                                change_progress("fan_test2", "standby")
+                                send_progress(75, "fan_test2")
+                                
+                                inspection_data["mid_time"] = inspection_data[
+                                    "end_time"
+                                ]
+
+                            
+                        if inspection_data["step"] == 18:
+                            print(f"18 測風扇全開:40% ：{pump_test_time} 秒")    
+                            
+                            speed = translate_fan_speed(40)
+                            set_f1(speed)
+                            set_f2(speed)
+                            set_f3(speed)
+                            set_f4(speed)
+                            set_f5(speed)
+                            set_f6(speed)
+                            set_f7(speed)
+                            set_f8(speed)
+                          
+                          
+                            test_ac_9 = status_data["AC"]
+                            test_ap_2 = raw_485_data_eletricity["apparent_power"]
+                            
+                            write_measured_data(2088, test_ac_9) 
+                            write_measured_data(2090, test_ap_2)
+                            
+                                                        
+                            inspection_data["end_time"] = time.time()
+                            diff = (
+                                inspection_data["end_time"]
+                                - inspection_data["mid_time"]
+                            )
+                            if diff >= pump_test_time:
+                                inspection_data["step"] += 1
+                                
+                                change_progress("fan_test2", "finish")
+                                send_progress(75, "fan_test2")
+                                
+                                change_progress("fan_test3", "standby")
+                                send_progress(76, "fan_test3")
+                                
+                                inspection_data["mid_time"] = inspection_data[
+                                    "end_time"
+                                ]
+
+                            
+                            
+                        if inspection_data["step"] == 19:
+                            print(f"19 測風扇全開:80% ：{pump_test_time} 秒")    
+                                        
+                            speed = translate_fan_speed(80)
+                            set_f1(speed)
+                            set_f2(speed)
+                            set_f3(speed)
+                            set_f4(speed)
+                            set_f5(speed)
+                            set_f6(speed)
+                            set_f7(speed)
+                            set_f8(speed)
+                          
+                            test_ac_10 = status_data["AC"]
+                            test_ap_3 = raw_485_data_eletricity["apparent_power"]
+                            
+                            write_measured_data(2092, test_ac_10) 
+                            write_measured_data(2094, test_ap_3)
+                            
+                                                        
+                            inspection_data["end_time"] = time.time()
+                            diff = (
+                                inspection_data["end_time"]
+                                - inspection_data["mid_time"]
+                            )
+                            if diff >= pump_test_time:
+                                inspection_data["step"] += 1
+                                change_progress("fan_test3", "finish")
+                                send_progress(76, "fan_test3")
+                                
+                                set_f1(0)
+                                set_f2(0)
+                                set_f3(0)
+                                set_f4(0)
+                                set_f5(0)
+                                set_f6(0)
+                                set_f7(0)
+                                set_f8(0)
+                                
+                                inspection_data["mid_time"] = inspection_data[
+                                    "end_time"
+                                ]
+
+
+
+                        if inspection_data["step"] == 20:
+                            print("20. 最後收尾")
 
                             f1_data = []
                             p1_data = []

@@ -896,6 +896,70 @@ def Mbus_get():
         time.sleep(1)
 
 
+
+######################## 測試分離Mbus_get和Mbus_trap的功能 ########################
+
+# def Mbus_get():
+#     global float_values, trap_bool_lists, ats_list, cnt, data_details, v2
+
+#     while True:
+#         # 讀取 JSON 設定
+#         with open(f"{os.path.dirname(log_path)}/webUI/web/json/scc_data.json", "r") as f:
+#             data_details = json.load(f)
+
+#         with open(f"{os.path.dirname(log_path)}/webUI/web/json/version.json", "r") as f:
+#             v2 = not json.load(f)["function_switch"]
+
+#         if cnt > 15:
+#             try:
+#                 with ModbusTcpClient(host=MODBUS_SERVER_IP, port=MODBUS_SERVER_PORT) as client:
+#                     # 感測值
+#                     mbus_data = client.read_holding_registers(5000, 62)
+#                     if not mbus_data.isError():
+#                         float_values = convert_registers_to_str(mbus_data.registers)
+
+#                     # ATS 狀態
+#                     ats_data = client.read_coils(address=(8192 + 10), count=2)
+#                     if not ats_data.isError():
+#                         ats_list[0] = "OK" if ats_data.bits[0] else "NG"
+#                         ats_list[1] = "OK" if ats_data.bits[1] else "NG"
+#                     else:
+#                         ats_list = ["NG", "NG"]
+
+#                     # Trap register bit list
+#                     trap_regs = client.read_holding_registers(1700, 19)
+#                     if not trap_regs.isError():
+#                         trap_bool_lists = word_to_bool_list(trap_regs.registers)
+
+#                 cnt = 0
+#             except Exception as e:
+#                 print(f"Modbus error: {e}")
+#         cnt += 1
+#         time.sleep(1)
+
+# def Mbus_trap():
+#     global trap_bool_lists, v2, data_details
+
+#     while True:
+#         try:
+#             if trap_bool_lists:
+#                 error_indices = [0, 1, 2, 5, 6, 7, 8, 9, 10, 11, 15, 16, 17, 18]
+#                 error_section = [trap_bool_lists[i] for i in error_indices]
+#                 trap(error_section, v2)
+#         except Exception as e:
+#             print(f"trap error: {e}")
+#             if data_details.get("devices", {}).get("ControlUnit"):
+#                 send_snmp_trap(
+#                     (1, 3, 6, 1, 4, 1, 10876, 301, 1, 2, 1, 148),
+#                     SNMP_TRAP_RECEIVER_IP,
+#                     severity=3,
+#                     value="351 PLC Communication Broken Error",
+#                 )
+#         time.sleep(5)  # 每 5 秒做一次判斷，可調整
+
+######################## 測試結束 ########################
+
+
 def mib(jsondata):
     oid = (1, 3, 6, 1, 4, 1, 10876, 301, 1, 1, 4, 1, 1, 0)
     sensor_len = len(sensor)
@@ -1017,6 +1081,10 @@ if __name__ == "__main__":
 
     Mbus = threading.Thread(target=Mbus_get, name="Mbus_get")
     Mib = threading.Thread(target=mib, name="Mib", args=(data,))
+    
+    
+    #### 測試加入Mbus_trap的功能 ####
+    # Mbus_trap = threading.Thread(target=Mbus_trap, name="Mbus_trap")
 
     Mib.daemon = True
     Mbus.daemon = True

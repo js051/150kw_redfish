@@ -1314,33 +1314,7 @@ styles %}
                     }
                 }
             }
-            //Fillter計算
-            let fillter_val;
 
-            let p3 = !data["error"]["PrsrFltIn_broken"]
-                ? data["value"]["prsr_fltIn"]
-                : "-";
-
-            let p4 = !data["error"]["PrsrFltOut_broken"]
-                ? data["value"]["prsr_fltOut"]
-                : "-";
-
-
-            if (p3 == "-" || p4 == "-") {
-                fillter_val = "-";
-                $("#prsr_fltDiff_image").text("-").css("color", "red");
-
-            } else {
-                fillter_val = p3 - p4;
-
-                if (userType == "superuser") {
-                    fillter_val = parseFloat(fillter_val).toFixed(2);
-                } else {
-                    fillter_val = parseFloat(fillter_val).toFixed(1);
-                }
-                $("#prsr_fltDiff_image").css("color", "black").text(fillter_val);
-                $("#filter_deltaP").css("color", "black").text(fillter_val);
-            }
 
             ///判斷是否隱藏 mc overload reset按鈕
             const keys = [
@@ -1797,7 +1771,32 @@ styles %}
                 }
             }
 
+            //Fillter計算
+            let fillter_val;
 
+            let p3 = !data["error"]["PrsrFltIn_broken"]
+                ? data["value"]["prsr_fltIn"]
+                : "-";
+
+            let p4 = !data["error"]["PrsrFltOut_broken"]
+                ? data["value"]["prsr_fltOut"]
+                : "-";
+
+            if (p3 == "-" || p4 == "-") {
+                fillter_val = "-";
+                $("#prsr_fltDiff_image").text("-").css("color", "red");
+
+            } else {
+                fillter_val = p3 - p4;
+
+                if (userType == "superuser") {
+                    fillter_val = parseFloat(fillter_val).toFixed(2);
+                } else {
+                    fillter_val = parseFloat(fillter_val).toFixed(1);
+                }
+                $("#prsr_fltDiff_image").css("color", "black").text(fillter_val);
+                $("#filter_deltaP").css("color", "black").text(fillter_val);
+            }
 
             //PD計算
             let prsr_diff;
@@ -1826,10 +1825,23 @@ styles %}
                 );
             }
 
-            if (p1 == "-" || p2 == "-") {
+            ///改為P3-P2
+
+            // if (p1 == "-" || p2 == "-") {
+            //     prsr_diff = "-";
+            // } else {
+            //     prsr_diff = p1 - p2;
+
+            //     if (userType == "superuser") {
+            //         prsr_diff = parseFloat(prsr_diff).toFixed(2);
+            //     } else {
+            //         prsr_diff = parseFloat(prsr_diff).toFixed(1);
+            //     }
+            // }
+            if (p3 == "-" || p2 == "-") {
                 prsr_diff = "-";
             } else {
-                prsr_diff = p1 - p2;
+                prsr_diff = p3 - p2;
 
                 if (userType == "superuser") {
                     prsr_diff = parseFloat(prsr_diff).toFixed(2);
@@ -1953,7 +1965,7 @@ styles %}
                 }
             }
         }
-        //版本切換
+
         function change_version(ver_switch) {
             if (ver_switch["fan_count_switch"] === true) {
                 $("#fan_freq4_light").css({ top: "32.6%", left: "81.9%" });
@@ -1999,7 +2011,7 @@ styles %}
 
             ///更改首頁大圖
             if (ver_switch["coolant_quality_meter_switch"] === true && ver_switch["fan_count_switch"] === true) {
-                $("#machine").attr("src", "../static/images/side_car_with_six_fan_0325_no_coolant_quarity_meter.png");
+                $("#machine").attr("src", "../static/images/side car_0701( six_fan_no_valve).png");
             } else if (ver_switch["coolant_quality_meter_switch"] === false && ver_switch["fan_count_switch"] === true) {
                 $("#machine").attr("src", "../static/images/side_car_with_six_fan_0325.png");
             } else if (ver_switch["coolant_quality_meter_switch"] === false && ver_switch["fan_count_switch"] === false) {

@@ -2637,6 +2637,11 @@ styles %}
                             confirmButtonText: "OK",
                         });
                     } else if (r.status == "error") {
+                        if (Array.isArray(r.failed_racks)) {
+                            r.failed_racks.forEach(function (rack) {
+                                $(`#${rack}_sw`).prop("checked", false);
+                            });
+                        }
                         Swal.fire({
                             title: "Error",
                             html: r.message,

@@ -1850,6 +1850,57 @@ measure_data = {
     "fan8_speed": 1,
 }
 
+measure_data_2 = {
+    "test_t1_1": 1,
+    "test_ac_1": 1,
+    "test_av_1": 1,
+    "test_flow_rate_1": 1,
+    "test_prsr_rtn_1": 1,
+    "test_prsr_sup_1": 1,
+    "test_t1_2": 1,
+    "test_ac_2": 1,
+    "test_av_2": 1,
+    "test_flow_rate_2": 1,
+    "test_prsr_rtn_2": 1,
+    "test_prsr_sup_2": 1,
+    "test_t1_3": 1,
+    "test_ac_3": 1,
+    "test_av_3": 1,
+    "test_flow_rate_3": 1,
+    "test_prsr_rtn_3": 1,
+    "test_prsr_sup_3": 1,
+    "test_t1_4": 1,
+    "test_ac_4": 1,
+    "test_av_4": 1,
+    "test_flow_rate_4": 1,
+    "test_prsr_rtn_4": 1,
+    "test_prsr_sup_4": 1,
+    "test_t1_5": 1,
+    "test_ac_5": 1,
+    "test_av_5": 1,
+    "test_flow_rate_5": 1,
+    "test_prsr_rtn_5": 1,
+    "test_prsr_sup_5": 1,
+    "test_t1_6": 1,
+    "test_ac_6": 1,
+    "test_av_6": 1,
+    "test_flow_rate_6": 1,
+    "test_prsr_rtn_6": 1,
+    "test_prsr_sup_6": 1,
+    "test_t1_7": 1,
+    "test_ac_7": 1,
+    "test_av_7": 1,
+    "test_flow_rate_7": 1,
+    "test_prsr_rtn_7": 1,
+    "test_prsr_sup_7": 1,
+    "test_ac_8": 1,
+    "test_ap_1": 1,
+    "test_ac_9": 1,
+    "test_ap_2": 1,
+    "test_ac_10": 1,
+    "test_ap_3": 1,
+}
+
 result_data = {
     "p1_speed": False,
     "p2_speed": False,
@@ -1993,6 +2044,16 @@ progress_data = {
     "fan6_error": 1,
     "fan7_error": 1,
     "fan8_error": 1,
+    "pump_test1": 1,
+    "pump_test2": 1,
+    "pump_test3": 1,
+    "pump_test4": 1,
+    "pump_test5": 1,
+    "pump_test6": 1,
+    "pump_test7": 1,
+    "fan_test1": 1,
+    "fan_test2": 1,
+    "fan_test3": 1,
 }
 
 inspection_time = {
@@ -5058,16 +5119,19 @@ def read_modbus_data():
                             if sensorData["err_log"]["error"][key] not in error_data:
                                 if key.startswith("fan") and key.endswith("_error"):
                                     index = key[3]
-                                    for err_key in fan_error_status[f"Fan{index}"]:
-                                        if fan_error_status[f"Fan{index}"][err_key]:
-                                            error_data.append(
-                                                f"{sensorData['err_log']['error'][key]} ; {fan_status_message['error'][err_key]}"
-                                            )
-                                    for warning_key in fan_warning_status[f"Fan{index}"]:
-                                        if fan_warning_status[f"Fan{index}"][warning_key]:
-                                            error_data.append(
-                                                f"{sensorData['err_log']['error'][key]} ; {fan_status_message['warning'][warning_key]}"
-                                            )
+                                    if any(fan_error_status[f"Fan{index}"].values()) or any(fan_warning_status[f"Fan{index}"].values()):
+                                        for err_key in fan_error_status[f"Fan{index}"]:
+                                            if fan_error_status[f"Fan{index}"][err_key]:
+                                                error_data.append(
+                                                    f"{sensorData['err_log']['error'][key]} ; {fan_status_message['error'][err_key]}"
+                                                )
+                                        for warning_key in fan_warning_status[f"Fan{index}"]:
+                                            if fan_warning_status[f"Fan{index}"][warning_key]:
+                                                error_data.append(
+                                                    f"{sensorData['err_log']['error'][key]} ; {fan_status_message['warning'][warning_key]}"
+                                                )
+                                    else:
+                                        error_data.append(sensorData["err_log"]["error"][key])
                                 else:
                                     error_data.append(sensorData["err_log"]["error"][key])
                     error_count += 1
@@ -5085,32 +5149,44 @@ def read_modbus_data():
                                 if current_state and not previous_error_states[key]:
                                     if key.startswith("fan") and key.endswith("_error"):
                                         index = key[3]
-                                        for err_key in fan_error_status[f"Fan{index}"]:
-                                            if fan_error_status[f"Fan{index}"][err_key]:
-                                                fan_status_list.append(err_key)
-                                                app.logger.warning(
-                                                    f'{sensorData["err_log"]["error"][key]} ; {fan_status_message["error"][err_key]}'
-                                                )
+                                        
+                                        if any(fan_error_status[f"Fan{index}"].values()) or any(fan_warning_status[f"Fan{index}"].values()):
+                                            for err_key in fan_error_status[f"Fan{index}"]:
+                                                if fan_error_status[f"Fan{index}"][err_key]:
+                                                    fan_status_list.append(err_key)
+                                                    app.logger.warning(
+                                                        f'{sensorData["err_log"]["error"][key]} ; {fan_status_message["error"][err_key]}'
+                                                    )
 
-                                                record_signal_on(
-                                                    sensorData["err_log"]["error"][
-                                                        key
-                                                    ].split()[0],
-                                                    f"{sensorData['err_log']['error'][key]};\n{fan_status_message['error'][err_key]}",
-                                                )
-                                        for warning_key in fan_warning_status[f"Fan{index}"]:
-                                            if fan_warning_status[f"Fan{index}"][warning_key]:
-                                                fan_warning_list.append(warning_key)
-                                                app.logger.warning(
-                                                    f"{sensorData['err_log']['error'][key]} ; {fan_status_message['warning'][warning_key]}"
-                                                )
+                                                    record_signal_on(
+                                                        sensorData["err_log"]["error"][
+                                                            key
+                                                        ].split()[0],
+                                                        f"{sensorData['err_log']['error'][key]};\n{fan_status_message['error'][err_key]}",
+                                                    )
+                                            for warning_key in fan_warning_status[f"Fan{index}"]:
+                                                if fan_warning_status[f"Fan{index}"][warning_key]:
+                                                    fan_warning_list.append(warning_key)
+                                                    app.logger.warning(
+                                                        f"{sensorData['err_log']['error'][key]} ; {fan_status_message['warning'][warning_key]}"
+                                                    )
 
-                                                record_signal_on(
-                                                    sensorData["err_log"]["error"][
-                                                        key
-                                                    ].split()[0],
-                                                    f"{sensorData['err_log']['error'][key]};\n{fan_status_message['warning'][warning_key]}",
-                                                )        
+                                                    record_signal_on(
+                                                        sensorData["err_log"]["error"][
+                                                            key
+                                                        ].split()[0],
+                                                        f"{sensorData['err_log']['error'][key]};\n{fan_status_message['warning'][warning_key]}",
+                                                    )    
+                                        else:
+                                            app.logger.warning(
+                                                sensorData["err_log"]["error"][key]
+                                            )
+                                            record_signal_on(
+                                                sensorData["err_log"]["error"][
+                                                    key
+                                                ].split()[0],
+                                                sensorData["err_log"]["error"][key],
+                                            )
                                     else:
                                         app.logger.warning(
                                             sensorData["err_log"]["error"][key]
@@ -5164,6 +5240,12 @@ def read_modbus_data():
                                                     ].split()[0],
                                                     f"{sensorData['err_log']['error'][key]};\n{fan_status_message['warning'][warning_key]}",
                                                 )
+                                        record_signal_off(
+                                            sensorData["err_log"]["error"][key].split()[
+                                                0
+                                            ],
+                                            sensorData["err_log"]["error"][key],
+                                        )
                                     else:
                                         app.logger.info(
                                             f"{sensorData['err_log']['error'][key]} Restore"
@@ -7912,111 +7994,7 @@ def restoreFactorySettingAll():
         name="snmp_operation"
     ).move_logs()
 
-    # try:
-    #     error_dir = os.path.join(log_path, "logs", "error")
-    #     old_error_dir = os.path.join(log_path, "logs", "old_error")
 
-    #     if os.path.exists(error_dir) and os.path.isdir(error_dir):
-    #         if not os.path.exists(old_error_dir):
-    #             os.makedirs(old_error_dir)
-
-    #         for filename in os.listdir(error_dir):
-    #             src_file = os.path.join(error_dir, filename)
-    #             dst_file = os.path.join(old_error_dir, filename)
-    #             if os.path.isfile(src_file):
-    #                 # 如果目的地已存在同名檔案，則改名避免覆蓋
-    #                 if os.path.exists(dst_file):
-    #                     name, ext = os.path.splitext(filename)
-    #                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    #                     new_filename = f"{name}.{timestamp}{ext}"
-    #                     dst_file = os.path.join(old_sensor_dir, new_filename)
-
-    #                 shutil.move(src_file, dst_file)
-    #         print("All error log files moved to old_error successfully.")
-    #     else:
-    #         print("Error log directory does not exist.")
-    # except Exception as e:
-    #     print(f"Move log error: {e}")
-        
-
-    # try:
-    #     operation_dir = os.path.join(log_path, "logs", "operation")
-    #     old_operation_dir = os.path.join(log_path, "logs", "old_operation")
-
-    #     if os.path.exists(operation_dir) and os.path.isdir(operation_dir):
-    #         if not os.path.exists(old_operation_dir):
-    #             os.makedirs(old_operation_dir)
-
-    #         for filename in os.listdir(operation_dir):
-    #             src_file = os.path.join(operation_dir, filename)
-    #             dst_file = os.path.join(old_operation_dir, filename)
-    #             if os.path.isfile(src_file):
-    #                 # 如果目的地已存在同名檔案，則改名避免覆蓋
-    #                 if os.path.exists(dst_file):
-    #                     name, ext = os.path.splitext(filename)
-    #                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    #                     new_filename = f"{name}.{timestamp}{ext}"
-    #                     dst_file = os.path.join(old_sensor_dir, new_filename)
-    #                 shutil.move(src_file, dst_file)
-    #         print("All operation log files moved to old_operation successfully.")
-    #     else:
-    #         print("operation log directory does not exist.")
-    # except Exception as e:
-    #     print(f"Move log operation: {e}")
-        
-        
-    # try:
-    #     sensor_dir = os.path.join(log_path, "logs", "sensor")
-    #     old_sensor_dir = os.path.join(log_path, "logs", "old_sensor")
-
-    #     if os.path.exists(sensor_dir) and os.path.isdir(sensor_dir):
-    #         if not os.path.exists(old_sensor_dir):
-    #             os.makedirs(old_sensor_dir)
-
-    #         for filename in os.listdir(sensor_dir):
-    #             src_file = os.path.join(sensor_dir, filename)
-    #             dst_file = os.path.join(old_sensor_dir, filename)
-    #             if os.path.isfile(src_file):
-    #                 # 如果目的地已存在同名檔案，則改名避免覆蓋
-    #                 if os.path.exists(dst_file):
-    #                     name, ext = os.path.splitext(filename)
-    #                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    #                     new_filename = f"{name}.{timestamp}{ext}"
-    #                     dst_file = os.path.join(old_sensor_dir, new_filename)
-
-    #                 shutil.move(src_file, dst_file)
-    #         print("All sensor log files moved to old_sensor successfully.")
-    #     else:
-    #         print("Sensor log directory does not exist.")
-    # except Exception as e:
-    #     print(f"Move log error: {e}")
-        
-
-    # try:
-    #     operation_dir = os.path.join(snmp_path, "RestAPI", "logs", "operation")
-    #     old_operation_dir = os.path.join(snmp_path, "RestAPI", "logs", "old_operation")
-
-    #     if os.path.exists(operation_dir) and os.path.isdir(operation_dir):
-    #         if not os.path.exists(old_operation_dir):
-    #             os.makedirs(old_operation_dir)
-
-    #         for filename in os.listdir(operation_dir):
-    #             src_file = os.path.join(operation_dir, filename)
-    #             dst_file = os.path.join(old_operation_dir, filename)
-    #             if os.path.isfile(src_file):
-    #                 # 如果目的地已存在同名檔案，則改名避免覆蓋
-    #                 if os.path.exists(dst_file):
-    #                     name, ext = os.path.splitext(filename)
-    #                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    #                     new_filename = f"{name}.{timestamp}{ext}"
-    #                     dst_file = os.path.join(old_sensor_dir, new_filename)
-
-    #                 shutil.move(src_file, dst_file)
-    #         print("All operation log files moved to old_operation successfully.")
-    #     else:
-    #         print("operation log directory does not exist.")
-    # except Exception as e:
-    #     print(f"Move log operation: {e}")
     
     ###5. Engineer Mode: Sensor Adjustment Setting恢復預設值
     try:
@@ -8136,6 +8114,73 @@ def restoreFactorySettingAll():
     except Exception as e:
         print(f"reset manual mode pump and fan speed error:{e}")
     
+    ### 16 Engineer Mode: Reset Switch Version
+    try:
+        with ModbusTcpClient(
+            host=modbus_host, port=modbus_port, unit=modbus_slave_id
+        ) as client:
+            client.write_coils(
+                (8192 + 803),
+                [False] * 11,
+            )
+            op_logger.info("Reset Switch Version Successfully")
+    except Exception as e:
+        print(f"reset Switch Version error:{e}")
+    
+    ### 17 Engineer Mode: Reset Rack Enable
+    try:
+        with ModbusTcpClient(
+            host=modbus_host, port=modbus_port, unit=modbus_slave_id
+        ) as client:
+            client.write_coils(
+                (8192 + 710),
+                [False] * 11,
+            )
+            op_logger.info("Reset Rack Enable Successfully")
+    except Exception as e:
+        print(f"reset Rack Enable error:{e}")
+        
+    ### 18 restore to stop mode
+    try:
+        set_mode("stop")
+        op_logger.info("Set mode to stop Successfully")
+    except Exception as e:
+        print(f"set mode to stop error:{e}")
+        
+    ### 19. System Setting: Restore SNMP Setting
+    try:
+        trap_ip = "127.0.0.1"
+        read_community = "public"
+        with open(f"{snmp_path}/snmp/snmp.json", "r") as json_file:
+            data = json.load(json_file)
+            data["trap_ip_address"] = trap_ip
+            data["read_community"] = read_community
+        with open(f"{snmp_path}/snmp/snmp.json", "w") as file:
+            json.dump(data, file)
+        op_logger.info("SNMP Setting Reset Successfully")
+    except Exception as e:
+        print(f"SNMP Setting import error:{e}")
+        
+    ### 20. Restore MC Settig
+    try:
+        with ModbusTcpClient(
+            host=modbus_host, port=modbus_port, unit=modbus_slave_id
+        ) as client:
+            client.write_coils((8192 + 840), [True] * 5)
+            op_logger.info("MC Setting Reset Successfully")
+    except Exception as e:
+        print(f"mc setting error:{e}")
+        return retry_modbus((8192 + 840), [True] * 5, "coil")
+    
+    ### 21. Restore admin password
+    try:
+        pwd = "password"
+        USER_DATA["admin"] = pwd
+        set_key(f"{web_path}/.env", "ADMIN", USER_DATA["admin"])
+        os.chmod(f"{web_path}/.env", 0o666)
+        op_logger.info("Restore admin password successfully")
+    except Exception as e:
+        print(f"Restore admin password error:{e}")
     ##### 最後一步, 重啟電腦
     # subprocess.run(
     #     ["sudo", "reboot"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
@@ -8294,9 +8339,7 @@ def get_inspection_result():
             host=modbus_host, port=modbus_port, unit=modbus_slave_id
         ) as client:
             inspect_result_len = len(result_data) - 3
-            # r = client.read_holding_registers(
-            #     750, inspect_result_len, unit=modbus_slave_id
-            # )
+        ###減去3個: "force_change_mode", "inspect_finish", "inspect_time"
             r = client.read_holding_registers(
                 2000, inspect_result_len, unit=modbus_slave_id
             )
@@ -8305,13 +8348,15 @@ def get_inspection_result():
             for i in range(inspect_result_len):
                 key = key_list[i]
                 if r.registers[i] == 1:
+                    ### NG
                     result_data[key] = True
                 elif r.registers[i] == 0:
+                    ### OK
                     result_data[key] = False
 
             prog_len = len(progress_data.keys())
 
-            # r2 = client.read_holding_registers(800, prog_len, unit=modbus_slave_id)
+
             r2 = client.read_holding_registers(
                 2100, prog_len, unit=modbus_slave_id
             )
@@ -8366,6 +8411,28 @@ def get_inspection_result():
     except Exception as e:
         print(f"get measured result error:{e}")
 
+    try:
+        with ModbusTcpClient(
+            host=modbus_host, port=modbus_port, unit=modbus_slave_id
+        ) as client:
+            measure_len = len(measure_data_2.keys()) * 2
+            r = client.read_holding_registers(2900, measure_len)
+            key_list = list(measure_data_2.keys())
+
+            j = 0
+            for i in range(0, measure_len, 2):
+                temp1 = [r.registers[i], r.registers[i + 1]]
+                decoder_big_endian = BinaryPayloadDecoder.fromRegisters(
+                    temp1, byteorder=Endian.Big, wordorder=Endian.Little
+                )
+                decoded_value_big_endian = decoder_big_endian.decode_32bit_float()
+                format_value = decoded_value_big_endian
+                measure_data_2[key_list[j]] = format_value
+                j += 1
+    except Exception as e:
+        print(f"get measured result error:{e}")
+
+
     for inspection_key, sensor_key in key_mapping.items():
         if sensor_key in sensorData["value"]:
             inspection_value[inspection_key] = sensorData["value"][sensor_key]
@@ -8386,6 +8453,7 @@ def get_inspection_result():
         "progress_data": progress_data,
         "sensor_data": sensorData,
         "measure_data": measure_data,
+        "measure_data_2": measure_data_2,
         "inspection_time_last_check": inspection_time_last_check,
         "fw_info_data": fw_info_data,
         "fw_info_version": fw_info_version,
@@ -8690,7 +8758,7 @@ def set_rack_control():
         if failed_racks:
             failed_racks_list = "".join([f"<li>{rack}</li>" for rack in failed_racks])
             failed_message = f"Failed to update the following racks due to comm error:<br><ul style='margin-left: 67px;margin-top: 10px; text-align: left;'>{failed_racks_list}</ul>"
-            return jsonify(status="error", message=failed_message)
+            return jsonify(status="error", message=failed_message, failed_racks=failed_racks)
 
         return jsonify(status="success", message="Update rack setting successfully")
 

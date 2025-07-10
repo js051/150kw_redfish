@@ -25,7 +25,9 @@ styles %}
     .inspection_time,
     .communication_result,
     .overload_result,
-    .error_result {
+    .error_result,
+    .tast_result,
+    .tast_result_fan {
         border: 2px solid #008000;
         border-radius: 10px;
         margin: 2em 0;
@@ -38,7 +40,9 @@ styles %}
     .inspection_time::before,
     .communication_result::before,
     .overload_result::before,
-    .error_result::before {
+    .error_result::before,
+    .tast_result::before,
+    .tast_result_fan::before {
         background-color: #fff;
         color: #000000;
         content: attr(data-before);
@@ -1139,6 +1143,209 @@ styles %}
         </div>
     </div>
 
+
+    <div class="tast_result title" data-label="Test Result">
+        <div class="data-before-trigger"></div>
+        <div class="content">
+            <table class="table table-hover">
+                <thead>
+                    <tr class="row_sticky">
+                        <th class="w20 tdCenterAlign">Tast Title</th>
+                        <th class="w10 tdCenterAlign">Status</th>
+                        <th class="w10 tdCenterAlign">T1</th>
+                        <th class="w10 tdCenterAlign">AC</th>
+                        <!-- <th class="w16 tdCenterAlign">Current Value</th> -->
+                        <th class="w10 tdCenterAlign">AV</th>
+                        <th class="w10 tdCenterAlign">Flow Rate</th>
+                        <th class="w10 tdCenterAlign">Supply Pressure</th>
+                        <th class="w10 tdCenterAlign">Return Pressure</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="w20 tdCenterAlign"> Pump 1 2 3:60%</td>
+                        <td class="w10 tdCenterAlign" id="pump_test1_status">
+                            *
+                        </td>
+                        <td class="w10 tdCenterAlign" id="test_t1_1_measure">
+                            *
+                        </td>
+                        <!-- <td class="w16 tdCenterAlign" id="p1_speed_stat"></td> -->
+                        <td class="w10 tdCenterAlign" id="test_ac_1_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_av_1_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_flow_rate_1_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_prsr_rtn_1_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_prsr_sup_1_measure">*</td>
+                    </tr>
+                    <tr>
+                        <td class="w20 tdCenterAlign"> Pump 1 2 :40%</td>
+                        <td class="w10 tdCenterAlign" id="pump_test2_status">
+                            *
+                        </td>
+                        <td class="w10 tdCenterAlign" id="test_t1_2_measure">
+                            *
+                        </td>
+                        <!-- <td class="w16 tdCenterAlign" id="p1_speed_stat"></td> -->
+                        <td class="w10 tdCenterAlign" id="test_ac_2_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_av_2_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_flow_rate_2_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_prsr_rtn_2_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_prsr_sup_2_measure">*</td>
+                    </tr>
+                    <tr>
+                        <td class="w20 tdCenterAlign"> Pump 1 2 :80%</td>
+                        <td class="w10 tdCenterAlign" id="pump_test3_status">
+                            *
+                        </td>
+                        <td class="w10 tdCenterAlign" id="test_t1_3_measure">
+                            *
+                        </td>
+                        <!-- <td class="w16 tdCenterAlign" id="p1_speed_stat"></td> -->
+                        <td class="w10 tdCenterAlign" id="test_ac_3_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_av_3_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_flow_rate_3_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_prsr_rtn_3_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_prsr_sup_3_measure">*</td>
+                    </tr>
+                    <tr>
+                        <td class="w20 tdCenterAlign"> Pump 1 3 :40%</td>
+                        <td class="w10 tdCenterAlign" id="pump_test4_status">
+                            *
+                        </td>
+                        <td class="w10 tdCenterAlign" id="test_t1_4_measure">
+                            *
+                        </td>
+                        <!-- <td class="w16 tdCenterAlign" id="p1_speed_stat"></td> -->
+                        <td class="w10 tdCenterAlign" id="test_ac_4_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_av_4_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_flow_rate_4_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_prsr_rtn_4_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_prsr_sup_4_measure">*</td>
+                    </tr>
+                    <tr>
+                        <td class="w20 tdCenterAlign"> Pump 1 3 :80%</td>
+                        <td class="w10 tdCenterAlign" id="pump_test5_status">
+                            *
+                        </td>
+                        <td class="w10 tdCenterAlign" id="test_t1_5_measure">
+                            *
+                        </td>
+                        <!-- <td class="w16 tdCenterAlign" id="p1_speed_stat"></td> -->
+                        <td class="w10 tdCenterAlign" id="test_ac_5_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_av_5_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_flow_rate_5_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_prsr_rtn_5_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_prsr_sup_5_measure">*</td>
+                    </tr>
+                    <tr>
+                        <td class="w20 tdCenterAlign"> Pump 2 3 :40%</td>
+                        <td class="w10 tdCenterAlign" id="pump_test6_status">
+                            *
+                        </td>
+                        <td class="w10 tdCenterAlign" id="test_t1_6_measure">
+                            *
+                        </td>
+                        <!-- <td class="w16 tdCenterAlign" id="p1_speed_stat"></td> -->
+                        <td class="w10 tdCenterAlign" id="test_ac_6_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_av_6_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_flow_rate_6_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_prsr_rtn_6_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_prsr_sup_6_measure">*</td>
+                    </tr>
+                    <tr>
+                        <td class="w20 tdCenterAlign"> Pump 2 3 :80%</td>
+                        <td class="w10 tdCenterAlign" id="pump_test7_status">
+                            *
+                        </td>
+                        <td class="w10 tdCenterAlign" id="test_t1_7_measure">
+                            *
+                        </td>
+                        <!-- <td class="w16 tdCenterAlign" id="p1_speed_stat"></td> -->
+                        <td class="w10 tdCenterAlign" id="test_ac_7_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_av_7_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_flow_rate_7_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_prsr_rtn_7_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="test_prsr_sup_7_measure">*</td>
+                    </tr>
+
+
+
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="tast_result_fan title" data-label="Test Result Fan">
+        <div class="data-before-trigger"></div>
+        <div class="content">
+            <table class="table table-hover">
+                <thead>
+                    <tr class="row_sticky">
+                        <th class="w20 tdCenterAlign">Tast Title</th>
+                        <th class="w10 tdCenterAlign">Status</th>
+                        <th class="w10 tdCenterAlign">AC</th>
+                        <th class="w10 tdCenterAlign">Apparent Power</th>
+                        <!-- <th class="w16 tdCenterAlign">Current Value</th> -->
+                        <th class="w10 tdCenterAlign"></th>
+                        <th class="w10 tdCenterAlign"></th>
+                        <th class="w10 tdCenterAlign"></th>
+                        <th class="w10 tdCenterAlign"></th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <tr>
+                        <td class="w20 tdCenterAlign"> fan all :15%</td>
+                        <td class="w10 tdCenterAlign" id="fan_test1_status">
+                            *
+                        </td>
+                        <td class="w10 tdCenterAlign" id="test_ac_8_measure">
+                            *
+                        </td>
+                        <!-- <td class="w16 tdCenterAlign" id="p1_speed_stat"></td> -->
+                        <td class="w10 tdCenterAlign" id="test_ap_1_measure">*</td>
+                        <td class="w10 tdCenterAlign"></td>
+                        <td class="w10 tdCenterAlign"></td>
+                        <td class="w10 tdCenterAlign"></td>
+                        <td class="w10 tdCenterAlign"></td>
+                    </tr>
+                    <tr>
+                        <td class="w20 tdCenterAlign"> fan all :40%</td>
+                        <td class="w10 tdCenterAlign" id="fan_test2_status">
+                            *
+                        </td>
+                        <td class="w10 tdCenterAlign" id="test_ac_9_measure">
+                            *
+                        </td>
+                        <!-- <td class="w16 tdCenterAlign" id="p1_speed_stat"></td> -->
+                        <td class="w10 tdCenterAlign" id="test_ap_2_measure">*</td>
+                        <td class="w10 tdCenterAlign"></td>
+                        <td class="w10 tdCenterAlign"></td>
+                        <td class="w10 tdCenterAlign"></td>
+                        <td class="w10 tdCenterAlign"></td>
+                    </tr>
+                    <tr>
+                        <td class="w20 tdCenterAlign"> fan all :80%</td>
+                        <td class="w10 tdCenterAlign" id="fan_test3_status">
+                            *
+                        </td>
+                        <td class="w10 tdCenterAlign" id="test_ac_10_measure">
+                            *
+                        </td>
+                        <!-- <td class="w16 tdCenterAlign" id="p1_speed_stat"></td> -->
+                        <td class="w10 tdCenterAlign" id="test_ap_3_measure">*</td>
+                        <td class="w10 tdCenterAlign"></td>
+                        <td class="w10 tdCenterAlign"></td>
+                        <td class="w10 tdCenterAlign"></td>
+                        <td class="w10 tdCenterAlign"></td>
+                    </tr>
+
+
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 </div>
 {% endblock %} {% block scripts %}
 <script>
@@ -1168,12 +1375,20 @@ styles %}
             "data-before",
             "Error Status Inspection Result ▼"
         );
+        jQuery(".tast_result").attr(
+            "data-before",
+            "Test Result ▼"
+        );
+        jQuery(".tast_result_fan").attr(
+            "data-before",
+            "Test Result ▼"
+        );
+
 
         $(".title").each(function () {
             $(this).addClass("collapsed");
             $(this).attr("data-before", $(this).attr("data-label") + " ▲");
         });
-
         function expandAllTitles() {
             $(".title").each(function () {
                 $(this).removeClass("collapsed");
@@ -1200,10 +1415,11 @@ styles %}
 
         function update_inspection(data) {
             let inspect_data = data["result_data"];
-            let inspection_value = data["inspection_value"];
+            let inspection_value = data["inspection_value"];///現已不需要
             let status_data = data["progress_data"];
             let sensor_data = data["sensor_data"];
             let measure_data = data["measure_data"];
+            let measure_data_2 = data["measure_data_2"];
             let inspection_time_last_check = data["inspection_time_last_check"];
             const currentData = window.sharedData.data;
             for (let key in status_data) {
@@ -1317,6 +1533,33 @@ styles %}
             for (let key in measure_data) {
                 if (measure_data.hasOwnProperty(key)) {
                     let value = measure_data[key];
+                    let element_measure = document.getElementById(
+                        key + "_measure"
+                    );
+                    let status = status_data[key];
+
+                    if (element_measure) {
+                        if (status == "3" || status == "4") {
+                            element_measure.innerHTML = "-";
+                        } else if (status == "1") {
+                            element_measure.innerHTML = "-";
+                        } else {
+                            if (key.includes("f1") || key.includes("speed")) {
+                                element_measure.innerHTML = value.toFixed(0);
+                            } else {
+                                element_measure.innerHTML = value.toFixed(1);
+                            }
+                        }
+
+                        if (status_data[key] == 5) {
+                            element_measure.innerHTML = "-";
+                        }
+                    }
+                }
+            }
+            for (let key in measure_data_2) {
+                if (measure_data_2.hasOwnProperty(key)) {
+                    let value = measure_data_2[key];
                     let element_measure = document.getElementById(
                         key + "_measure"
                     );
@@ -1540,6 +1783,7 @@ styles %}
                     let mac_info = data["mac_info"];
                     let r1 = "";
                     let inspectionTime = time || "N/A";
+                    let checkSum = 0
 
                     r1 += "1. Inspection Details:\n";
 
@@ -1553,8 +1797,8 @@ styles %}
                             "PartNumber"
                         ]
                         let nameMap = {
-                            "SMC": "SMC",
-                            "SN": "Serial Number",
+                            "SMC": "SMC SN",
+                            "SN": "SN",
                             "Model": "Model",
                             "PartNumber": "Part Number"
                         };
@@ -1583,7 +1827,7 @@ styles %}
 
                         order.forEach(key => {
                             if (mac_info.hasOwnProperty(key)) {
-                                 let displayName = nameMap[key] || key; // 預設用原名
+                                let displayName = nameMap[key] || key; // 預設用原名
                                 r1 += `${displayName},${mac_info[key]}\n`;
                             }
                         })
@@ -1609,7 +1853,7 @@ styles %}
 
                         order.forEach(key => {
                             if (fw_info_version.hasOwnProperty(key)) {
-                                 let displayName = nameMap[key] || key; // 預設用原名
+                                let displayName = nameMap[key] || key; // 預設用原名
 
                                 r1 += `${displayName},${fw_info_version[key]}\n`;
                             }
@@ -1619,38 +1863,68 @@ styles %}
 
                     let r2 = "";
                     r2 += "2. Inspection Result:\n";
-                    r2 += "Item,Status,Result,Measured Value,Unit\n";
+                    r2 += "Item,Status,Result,Expect Value,Measured Value,Unit\n";
 
                     $("table tbody tr").each(function (i) {
                         if ($(this).is(":hidden")) {
                             return;
                         }
 
-                        let item = $(this).find("td").first().text().trim();
-                        let status = $(this).find("td").eq(1).text().trim();
-                        let result = $(this).find("td").eq(2).text().trim();
-                        let value = $(this).find("td").eq(4).text().trim();
-                        let unit = $(this).find("td").eq(5).text().trim();
+                        // let item = $(this).find("td").first().text().trim();
+                        // let status = $(this).find("td").eq(1).text().trim();
+                        // let result = $(this).find("td").eq(2).text().trim();
+                        // let value = $(this).find("td").eq(4).text().trim();
+                        // let unit = $(this).find("td").eq(5).text().trim();
+
+                        let col1 = $(this).find("td").first().text().trim();
+                        let col2 = $(this).find("td").eq(1).text().trim();
+                        let col3 = $(this).find("td").eq(2).text().trim();
+                        let col4 = $(this).find("td").eq(3).text().trim();
+                        let col5 = $(this).find("td").eq(4).text().trim();
+                        let col6 = $(this).find("td").eq(5).text().trim();
+                        let col7 = $(this).find("td").eq(6).text().trim();
+                        let col8 = $(this).find("td").eq(7).text().trim();
+
+
+                        
 
                         let rowNum = i + 2;
-                        console.log({ i, item });
+                        console.log({ i, col1 });
 
                         /// 更改下載csv檔的每個欄位title
 
-                        if (i >= 14 && i < 27) {
-                            r2 += `Broken Status: ${item},${status},${result},${value},${unit}\n`;
+                        if (i < 14) {
+                            r2 += `${col1},${col2},${col3},${col4},${col5},${col6}\n`;
+                        } else if (i >= 14 && i < 27) {
+                            r2 += `Broken Status: ${col1},${col2},${col3}\n`;
                         } else if (i >= 27 && i < 45) {
-                            r2 += `Communication Status: ${item},${status},${result},${value},${unit}\n`;
+                            r2 += `Communication Status: ${col1},${col2},${col3}\n`;
                         } else if (i >= 46 && i < 51) {
-                            r2 += `Overload Status: ${item},${status},${result},${value},${unit}\n`;
-                        } else if (i >= 51 && i < 61) {
-                            r2 += `Error Status: ${item},${status},${result},${value},${unit}\n`;
-                        } else {
-                            r2 += `${item},${status},${result},${value},${unit}\n`;
+                            r2 += `Overload Status: ${col1},${col2},${col3}\n`;
+                        } else if (i >= 51 && i < 62) {
+                            r2 += `Error Status: ${col1},${col2},${col3}\n`;
+                        } else if (i == 62) {
+                            r2 += "Item,Status,T1,AC,AV,FlowRate, SupplyPressure,ReturnPressure\n";
+                            r2 += `${col1},${col2},${col3},${col4},${col5},${col6},${col7},${col8}\n`;
+                            checkSum += parseFloat(col3) + parseFloat(col4) + parseFloat(col5) + parseFloat(col6) + parseFloat(col7) + parseFloat(col8);
+                        } else if (i > 62 && i < 69) {
+                            r2 += `${col1},${col2},${col3},${col4},${col5},${col6},${col7},${col8}\n`;
+                            checkSum += parseFloat(col3) + parseFloat(col4) + parseFloat(col5) + parseFloat(col6) + parseFloat(col7) + parseFloat(col8);
+                        }
+                        else if (i == 69) {
+                            r2 += "Item,Status,AC,ApparentPower\n";
+                            r2 += `${col1},${col2},${col3},${col4}\n`;
+                            checkSum += parseFloat(col3) + parseFloat(col4);
+                        } else if (i > 69 && i < 72) {
+                            r2 += "Item,Status,AC,ApparentPower\n";
+                            r2 += `${col1},${col2},${col3},${col4}\n`;
+                            checkSum += parseFloat(col3) + parseFloat(col4);
+                        }  else {
+                            r2 += `${col1},${col2},${col3},${col4},${col5},${col6}\n`;
                         }
                     });
 
-                    let final_r = r1 + "\n" + r2;
+                    let final_r = r1 + "\n" + r2 + "\n" + "Check Sum : " + checkSum;
 
                     const now = new Date();
                     const timestamp = now
