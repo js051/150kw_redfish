@@ -1893,12 +1893,12 @@ measure_data_2 = {
     "test_flow_rate_7": 1,
     "test_prsr_rtn_7": 1,
     "test_prsr_sup_7": 1,
-    "test_ac_8": 1,
-    "test_ap_1": 1,
-    "test_ac_9": 1,
-    "test_ap_2": 1,
-    "test_ac_10": 1,
-    "test_ap_3": 1,
+    "fan_test_ac_1": 1,
+    "fan_test_ap_1": 1,
+    "fan_test_ac_2": 1,
+    "fan_test_ap_2": 1,
+    "fan_test_ac_3": 1,
+    "fan_test_ap_3": 1,
 }
 
 result_data = {
@@ -8192,6 +8192,47 @@ def restoreFactorySettingAll():
         op_logger.info("Restore admin password successfully")
     except Exception as e:
         print(f"Restore admin password error:{e}")
+        
+        
+    ### 22. restore netowrk default  
+    DEFAULT_NET_DATA_PC1 = {
+        "ethernet1": "192.168.3.102",
+        "Wired connection 1": "192.168.3.103",
+        "Wired connection 2": "192.168.3.104"
+    }  
+    DEFAULT_NET_DATA_PC2 = {
+        "ethernet1": "192.168.3.105",
+        "Wired connection 1": "192.168.3.106",
+        "Wired connection 2": "192.168.3.107"
+    }  
+    
+    first_pc = "http://192.168.3.100:5501/api/v1/set_network"
+    second_pc = "http://192.168.3.101:5501/api/v1/set_network"
+
+    superuser_password =  os.getenv("SUPERUSER")
+    reset_network_results = {}
+    try:
+        
+        res = requests.post(first_pc, auth=("superuser", superuser_password), json=DEFAULT_NET_DATA_PC1, verify=False, timeout=5)
+        reset_network_results["first_pc"] = {
+            "status_code": res.status_code,
+            "response": res.json() if res.headers.get("Content-Type") == "application/json" else res.text
+        }
+    except Exception as e:
+        reset_network_results["first_pc"] = f"Error: {e}"
+        print(f"Error: {e}")
+      
+    try:
+   
+        res = requests.post(second_pc, auth=("superuser", superuser_password), json=DEFAULT_NET_DATA_PC2, verify=False, timeout=5)
+        reset_network_results["second_pc"] = {
+            "status_code": res.status_code,
+            "response": res.json() if res.headers.get("Content-Type") == "application/json" else res.text
+        }
+    except Exception as e:
+        reset_network_results["second_pc"] = f"Error: {e}"
+        print(f"Error: {e}")  
+        
     ##### 最後一步, 重啟電腦
     # subprocess.run(
     #     ["sudo", "reboot"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE

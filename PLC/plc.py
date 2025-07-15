@@ -5636,9 +5636,11 @@ def control():
                                                 not value
                                             )
                             if int(diff) > error_check_time:
-                                inspection_data["step"] +=1
-                                
-                                
+                                inspection_data["step"] += 1
+                                inspection_data["end_time"] = time.time()
+                                inspection_data["mid_time"] = inspection_data[
+                                    "end_time"
+                                ]
                                 change_progress("pump_test1", "standby")
                                 send_progress(67, "pump_test1")
                                 
@@ -6013,11 +6015,11 @@ def control():
                             set_f7(speed)
                             set_f8(speed)
                             
-                            test_ac_8 = status_data["AC"]
-                            test_ap_1 = raw_485_data_eletricity["apparent_power"]
+                            fan_test_ac_1 = status_data["AC"]
+                            fan_test_ap_1 = raw_485_data_eletricity["apparent_power"]
                             
-                            write_measured_data(2084, test_ac_8) 
-                            write_measured_data(2086, test_ap_1)
+                            write_measured_data(2084, fan_test_ac_1) 
+                            write_measured_data(2086, fan_test_ap_1)
                             
                                                         
                             inspection_data["end_time"] = time.time()
@@ -6053,11 +6055,11 @@ def control():
                             set_f8(speed)
                           
                           
-                            test_ac_9 = status_data["AC"]
-                            test_ap_2 = raw_485_data_eletricity["apparent_power"]
+                            fan_test_ac_2 = status_data["AC"]
+                            fan_test_ap_2 = raw_485_data_eletricity["apparent_power"]
                             
-                            write_measured_data(2088, test_ac_9) 
-                            write_measured_data(2090, test_ap_2)
+                            write_measured_data(2088, fan_test_ac_2) 
+                            write_measured_data(2090, fan_test_ap_2)
                             
                                                         
                             inspection_data["end_time"] = time.time()
@@ -6093,11 +6095,11 @@ def control():
                             set_f7(speed)
                             set_f8(speed)
                           
-                            test_ac_10 = status_data["AC"]
-                            test_ap_3 = raw_485_data_eletricity["apparent_power"]
+                            fan_test_ac_3 = status_data["AC"]
+                            fan_test_ap_3 = raw_485_data_eletricity["apparent_power"]
                             
-                            write_measured_data(2092, test_ac_10) 
-                            write_measured_data(2094, test_ap_3)
+                            write_measured_data(2092, fan_test_ac_3) 
+                            write_measured_data(2094, fan_test_ap_3)
                             
                                                         
                             inspection_data["end_time"] = time.time()

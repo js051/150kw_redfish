@@ -14,6 +14,7 @@ from functools import wraps
 from io import BytesIO
 
 # 第三方套件
+import requests
 import pyzipper
 from dotenv import load_dotenv, set_key
 from concurrent_log_handler import ConcurrentTimedRotatingFileHandler
@@ -4010,6 +4011,47 @@ def get_snmp_setting():
 #     os.chmod(f"{web_path}/.env", 0o666)
 #     op_logger.info("User password updated successfully")
 #     return jsonify({"status": "success", "message": "Password Updated Successfully"})
+
+
+
+class NetworkConfigurator:
+    def __init__(self, interface_ip_map):
+        self.interface_ip_map = interface_ip_map
+
+    def set_static_ips(self, gateway="192.168.3.1", prefix="24", dns = "8.8.8.8"):
+        result = {}
+        for name, ip in self.interface_ip_map.items():
+            try:
+                subprocess.run([
+                    "nmcli", "connection", "modify", name,
+                    "ipv4.addresses", f"{ip}/{prefix}",
+                    "ipv4.gateway", gateway,
+                    "ipv4.dns", dns,
+                    "ipv4.method", "manual",
+                    "connection.autoconnect", "yes"
+                ], check=True)
+
+                subprocess.run(["nmcli", "connection", "down", name], check=True)
+                subprocess.run(["nmcli", "connection", "up", name], check=True)
+
+                result[name] = "Success"
+            except subprocess.CalledProcessError as e:
+                result[name] = f"Failed: {e}"
+        return result
+
+@scc_bp.route("/api/v1/set_network", methods=["POST"])
+@requires_auth
+
+def set_network():
+    try:
+        data = request.json  # e.g. { "ethernet1": "192.168.3.102", ... }
+        configurator = NetworkConfigurator(data)
+        result = configurator.set_static_ips()
+        return jsonify({"status": "ok", "result": result})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 
 def get_scc_data():
     while True:
