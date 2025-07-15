@@ -4026,7 +4026,7 @@ class NetworkConfigurator:
                     "nmcli", "connection", "modify", name,
                     "ipv4.addresses", f"{ip}/{prefix}",
                     "ipv4.gateway", gateway,
-                    "ipv4.dns", dns,
+                    # "ipv4.dns", dns,
                     "ipv4.method", "manual",
                     "connection.autoconnect", "yes"
                 ], check=True)
