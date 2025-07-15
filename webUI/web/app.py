@@ -294,7 +294,7 @@ sensorData = {
         "ambient_temp_high": False,
         "relative_humid_low": False,
         "relative_humid_high": False,
-        "dew_point_low": False,
+        "dew_point_high": False,
         "pH_low": False,
         "pH_high": False,
         "cdct_low": False,
@@ -320,7 +320,7 @@ sensorData = {
         "ambient_temp_high": False,
         "relative_humid_low": False,
         "relative_humid_high": False,
-        "dew_point_low": False,
+        "dew_point_high": False,
         "pH_low": False,
         "pH_high": False,
         "cdct_low": False,
@@ -455,7 +455,7 @@ sensorData = {
             "ambient_temp_high": "M113 Ambient Temperature Over Range (High) Warning (T a)",
             "relative_humid_low": "M114 Relative Humidity Over Range (Low) Warning (RH)",
             "relative_humid_high": "M115 Relative Humidity Over Range (High) Warning (RH)",
-            "dew_point_low": "M116 Condensation Warning (T Dp)",
+            "dew_point_high": "M116 Condensation Warning (T Dp)",
             "pH_low": "M117 pH Over Range (Low) Warning (PH)",
             "pH_high": "M118 pH Over Range (High) Warning (PH)",
             "cdct_low": "M119 Conductivity Over Range (Low) Warning (CON)",
@@ -481,7 +481,7 @@ sensorData = {
             "ambient_temp_high": "M213 Ambient Temperature Over Range (High) Alert (T a)",
             "relative_humid_low": "M214 Relative Humidity Over Range (Low) Alert (RH)",
             "relative_humid_high": "M215 Relative Humidity Over Range (High) Alert (RH)",
-            "dew_point_low": "M216 Condensation Alert (T Dp)",
+            "dew_point_high": "M216 Condensation Alert (T Dp)",
             "pH_low": "M217 pH Over Range (Low) Alert (PH)",
             "pH_high": "M218 pH Over Range (High) Alert (PH)",
             "cdct_low": "M219 Conductivity Over Range (Low) Alert (CON)",
@@ -1893,12 +1893,12 @@ measure_data_2 = {
     "test_flow_rate_7": 1,
     "test_prsr_rtn_7": 1,
     "test_prsr_sup_7": 1,
-    "test_ac_8": 1,
-    "test_ap_1": 1,
-    "test_ac_9": 1,
-    "test_ap_2": 1,
-    "test_ac_10": 1,
-    "test_ap_3": 1,
+    "fan_test_ac_1": 1,
+    "fan_test_ap_1": 1,
+    "fan_test_ac_2": 1,
+    "fan_test_ap_2": 1,
+    "fan_test_ac_3": 1,
+    "fan_test_ap_3": 1,
 }
 
 result_data = {
@@ -8192,6 +8192,47 @@ def restoreFactorySettingAll():
         op_logger.info("Restore admin password successfully")
     except Exception as e:
         print(f"Restore admin password error:{e}")
+        
+        
+    ### 22. restore netowrk default  
+    DEFAULT_NET_DATA_PC1 = {
+        "ethernet1": "192.168.3.102",
+        "Wired connection 1": "192.168.3.103",
+        "Wired connection 2": "192.168.3.104"
+    }  
+    DEFAULT_NET_DATA_PC2 = {
+        "ethernet1": "192.168.3.105",
+        "Wired connection 1": "192.168.3.106",
+        "Wired connection 2": "192.168.3.107"
+    }  
+    
+    first_pc = "http://192.168.3.100:5501/api/v1/set_network"
+    second_pc = "http://192.168.3.101:5501/api/v1/set_network"
+
+    superuser_password =  os.getenv("SUPERUSER")
+    reset_network_results = {}
+    try:
+        
+        res = requests.post(first_pc, auth=("superuser", superuser_password), json=DEFAULT_NET_DATA_PC1, verify=False, timeout=5)
+        reset_network_results["first_pc"] = {
+            "status_code": res.status_code,
+            "response": res.json() if res.headers.get("Content-Type") == "application/json" else res.text
+        }
+    except Exception as e:
+        reset_network_results["first_pc"] = f"Error: {e}"
+        print(f"Error: {e}")
+      
+    try:
+   
+        res = requests.post(second_pc, auth=("superuser", superuser_password), json=DEFAULT_NET_DATA_PC2, verify=False, timeout=5)
+        reset_network_results["second_pc"] = {
+            "status_code": res.status_code,
+            "response": res.json() if res.headers.get("Content-Type") == "application/json" else res.text
+        }
+    except Exception as e:
+        reset_network_results["second_pc"] = f"Error: {e}"
+        print(f"Error: {e}")  
+        
     ##### 最後一步, 重啟電腦
     # subprocess.run(
     #     ["sudo", "reboot"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
