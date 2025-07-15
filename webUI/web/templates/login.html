@@ -205,6 +205,7 @@
             }
 
             function showLoginDialog() {
+                const isLocalhost = (window.location.hostname === "127.0.0.1");
                 Swal.fire({
                     title: "LOGIN",
                     html: `<div class="box">
@@ -221,8 +222,8 @@
     `,
                     showCancelButton: false,
                     confirmButtonText: "LOGIN",
-                    showDenyButton: true,
-                    denyButtonText: "BACK",
+                    showDenyButton: isLocalhost,
+                    denyButtonText: "KIOSK",
                     denyButtonColor: "#7066e0",
                     allowOutsideClick: false,
                     width: "30%",
