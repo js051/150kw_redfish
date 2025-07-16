@@ -179,7 +179,33 @@
                     });
             }
 
+            function doLogin(username, password) {
+                $.post("/login", { username, password })
+                    .done(function (response) {
+                        if (response.success) {
+                            Swal.fire({
+                                title: "Success",
+                                text: "Login successful",
+                                icon: "success",
+                                timer: 1000,
+                                showConfirmButton: true,
+                                timerProgressBar: true,
+                            }).then(() => {
+                                window.location.href = "/status";
+                            });
+                        } else {
+                            Swal.fire("Error", "Wrong username or password", "error")
+                                .then(showLoginDialog);
+                        }
+                    })
+                    .fail(function () {
+                        Swal.fire("Error", "Wrong username or password", "error")
+                            .then(showLoginDialog);
+                    });
+            }
+
             function showLoginDialog() {
+                const isLocalhost = (window.location.hostname === "127.0.0.1");
                 Swal.fire({
                     title: "LOGIN",
                     html: `<div class="box">
@@ -196,6 +222,9 @@
     `,
                     showCancelButton: false,
                     confirmButtonText: "LOGIN",
+                    showDenyButton: isLocalhost,
+                    denyButtonText: "KIOSK",
+                    denyButtonColor: "#7066e0",
                     allowOutsideClick: false,
                     width: "30%",
                     customClass: {
@@ -219,41 +248,9 @@
                     },
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        $.post("/login", {
-                            username: result.value.username,
-                            password: result.value.password,
-                        })
-                            .done(function (response) {
-                                if (response.success) {
-                                    Swal.fire({
-                                        title: "Success",
-                                        text: "Login successful",
-                                        icon: "success",
-                                        timer: 1000,
-                                        showConfirmButton: true,
-                                        timerProgressBar: true,
-                                    }).then(() => {
-                                        window.location.href = "/status";
-                                    });
-                                } else {
-                                    Swal.fire(
-                                        "Error",
-                                        "Wrong username or password",
-                                        "error"
-                                    ).then(() => {
-                                        showLoginDialog();
-                                    });
-                                }
-                            })
-                            .fail(function () {
-                                Swal.fire(
-                                    "Error",
-                                    "Wrong username or password",
-                                    "error"
-                                ).then(() => {
-                                    showLoginDialog();
-                                });
-                            });
+                        doLogin(result.value.username, result.value.password);
+                    }else if (result.isDenied) {
+                        doLogin("kiosk", "0000");
                     }
                 });
                 if(window.location.hostname === "127.0.0.1"){

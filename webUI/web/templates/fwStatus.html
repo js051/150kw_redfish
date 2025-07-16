@@ -46,20 +46,20 @@ styles %}
     <div class="status">
         <div class="row">
             <div class="col-4">
-                <p>SMC SN:</p>
+                <p>Serial Number:</p>
             </div>
             <div class="col-4">
                 <p id="SMC"></p>
             </div>
         </div>
-        <div class="row">
+        <!-- <div class="row">
             <div class="col-4">
-                <p>SN:</p>
+                <p>Kaori SN:</p>
             </div>
             <div class="col-4">
                 <p id="SN">ABC-12345678</p>
             </div>
-        </div>
+        </div> -->
         <div class="row">
             <div class="col-4">
                 <p>Model:</p>
@@ -159,11 +159,11 @@ styles %}
                 json_data = data["FW_Info"];
                 plc_version = data["plc_version"];
 
-                $("#Version").text(FW_Info_Version["WebUI"]);
-                $("#PartNumber").text(json_data["PartNumber"]);
-                $("#SN").text(json_data["SN"]);
-                $("#SMC").text(json_data["SMC"]);
+                $("#SMC").text(json_data["SMC"]); // SMC serial number
+                // $("#SN").text(json_data["SN"]); // kaori serial number
                 $("#Model").text(json_data["Model"]);
+                $("#PartNumber").text(json_data["PartNumber"]);
+                $("#Version").text(FW_Info_Version["WebUI"]);
                 // $("#WebUI").text(FW_Info_Version["WebUI"]);
                 $("#Release_Time").text(FW_Info_Version["Release_Time"]);
                 // $("#SCC_API").text(FW_Info_Version["SCC_API"]);

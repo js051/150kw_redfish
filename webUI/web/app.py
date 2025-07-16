@@ -294,7 +294,7 @@ sensorData = {
         "ambient_temp_high": False,
         "relative_humid_low": False,
         "relative_humid_high": False,
-        "dew_point_low": False,
+        "dew_point_high": False,
         "pH_low": False,
         "pH_high": False,
         "cdct_low": False,
@@ -320,7 +320,7 @@ sensorData = {
         "ambient_temp_high": False,
         "relative_humid_low": False,
         "relative_humid_high": False,
-        "dew_point_low": False,
+        "dew_point_high": False,
         "pH_low": False,
         "pH_high": False,
         "cdct_low": False,
@@ -455,7 +455,7 @@ sensorData = {
             "ambient_temp_high": "M113 Ambient Temperature Over Range (High) Warning (T a)",
             "relative_humid_low": "M114 Relative Humidity Over Range (Low) Warning (RH)",
             "relative_humid_high": "M115 Relative Humidity Over Range (High) Warning (RH)",
-            "dew_point_low": "M116 Condensation Warning (T Dp)",
+            "dew_point_high": "M116 Condensation Warning (T Dp)",
             "pH_low": "M117 pH Over Range (Low) Warning (PH)",
             "pH_high": "M118 pH Over Range (High) Warning (PH)",
             "cdct_low": "M119 Conductivity Over Range (Low) Warning (CON)",
@@ -481,7 +481,7 @@ sensorData = {
             "ambient_temp_high": "M213 Ambient Temperature Over Range (High) Alert (T a)",
             "relative_humid_low": "M214 Relative Humidity Over Range (Low) Alert (RH)",
             "relative_humid_high": "M215 Relative Humidity Over Range (High) Alert (RH)",
-            "dew_point_low": "M216 Condensation Alert (T Dp)",
+            "dew_point_high": "M216 Condensation Alert (T Dp)",
             "pH_low": "M217 pH Over Range (Low) Alert (PH)",
             "pH_high": "M218 pH Over Range (High) Alert (PH)",
             "cdct_low": "M219 Conductivity Over Range (Low) Alert (CON)",
@@ -1635,7 +1635,7 @@ thrshd_factory = {
     "Thr_A_Cdct_H": 4700,
     "Thr_A_Cdct_L": 4000,
     "Thr_A_ClntFlow": 20,
-    "Thr_A_DewPoint": 2,
+    "Thr_A_DewPoint": 3,
     "Thr_A_PrsrClntRtn": 200,
     "Thr_A_PrsrClntRtnSpare": 200,
     "Thr_A_PrsrClntSply": 400,
@@ -1648,16 +1648,16 @@ thrshd_factory = {
     "Thr_A_Rst_AC_H": 40,
     "Thr_A_Rst_AmbientTemp_H": 40,
     "Thr_A_Rst_AmbientTemp_L": 23,
-    "Thr_A_Rst_Cdct_H": 4650,
-    "Thr_A_Rst_Cdct_L": 4100,
+    "Thr_A_Rst_Cdct_H": 4600,
+    "Thr_A_Rst_Cdct_L": 4200,
     "Thr_A_Rst_ClntFlow": 25,
-    "Thr_A_Rst_DewPoint": 2.5,
+    "Thr_A_Rst_DewPoint": 1,
     "Thr_A_Rst_PrsrClntRtn": 150,
     "Thr_A_Rst_PrsrClntRtnSpare": 150,
     "Thr_A_Rst_PrsrClntSply": 350,
     "Thr_A_Rst_PrsrClntSplySpare": 350,
     "Thr_A_Rst_PrsrFltIn_H": 500,
-    "Thr_A_Rst_PrsrFltIn_L": 25,
+    "Thr_A_Rst_PrsrFltIn_L": 30,
     "Thr_A_Rst_PrsrFltOut_H": 150,
     "Thr_A_Rst_RelativeHumid_H": 75,
     "Thr_A_Rst_RelativeHumid_L": 8.5,
@@ -1683,7 +1683,7 @@ thrshd_factory = {
     "Thr_W_Cdct_H": 4600,
     "Thr_W_Cdct_L": 4200,
     "Thr_W_ClntFlow": 30,
-    "Thr_W_DewPoint": 5,
+    "Thr_W_DewPoint": 1,
     "Thr_W_PrsrClntRtn": 150,
     "Thr_W_PrsrClntRtnSpare": 150,
     "Thr_W_PrsrClntSply": 350,
@@ -1699,7 +1699,7 @@ thrshd_factory = {
     "Thr_W_Rst_Cdct_H": 4500,
     "Thr_W_Rst_Cdct_L": 4300,
     "Thr_W_Rst_ClntFlow": 35,
-    "Thr_W_Rst_DewPoint": 5.5,
+    "Thr_W_Rst_DewPoint": -1,
     "Thr_W_Rst_PrsrClntRtn": 100,
     "Thr_W_Rst_PrsrClntRtnSpare": 100,
     "Thr_W_Rst_PrsrClntSply": 300,
@@ -1893,12 +1893,12 @@ measure_data_2 = {
     "test_flow_rate_7": 1,
     "test_prsr_rtn_7": 1,
     "test_prsr_sup_7": 1,
-    "test_ac_8": 1,
-    "test_ap_1": 1,
-    "test_ac_9": 1,
-    "test_ap_2": 1,
-    "test_ac_10": 1,
-    "test_ap_3": 1,
+    "fan_test_ac_1": 1,
+    "fan_test_ap_1": 1,
+    "fan_test_ac_2": 1,
+    "fan_test_ap_2": 1,
+    "fan_test_ac_3": 1,
+    "fan_test_ap_3": 1,
 }
 
 result_data = {
@@ -8119,10 +8119,21 @@ def restoreFactorySettingAll():
         with ModbusTcpClient(
             host=modbus_host, port=modbus_port, unit=modbus_slave_id
         ) as client:
-            client.write_coils(
-                (8192 + 803),
-                [False] * 11,
-            )
+            # flow value filter : enabled
+            client.write_coils((8192 + 803),[False])
+            
+            # coolant quality meter : disabled
+            client.write_coils((8192 + 804),[True])
+            
+            # fan count : 6
+            client.write_coils((8192 + 805),[True] )
+            
+            # liquid level 1 & 2 : enabled
+            client.write_coils((8192 + 806),[False] * 2)
+            
+            # liquid level 3 : disabled , leakage sensor 1 ~ 5 : disabled
+            client.write_coils((8192 + 808),[True] * 6)
+                        
             op_logger.info("Reset Switch Version Successfully")
     except Exception as e:
         print(f"reset Switch Version error:{e}")
@@ -8181,6 +8192,47 @@ def restoreFactorySettingAll():
         op_logger.info("Restore admin password successfully")
     except Exception as e:
         print(f"Restore admin password error:{e}")
+        
+        
+    ### 22. restore netowrk default  
+    DEFAULT_NET_DATA_PC1 = {
+        "ethernet1": "192.168.3.102",
+        "Wired connection 1": "192.168.3.103",
+        "Wired connection 2": "192.168.3.104"
+    }  
+    DEFAULT_NET_DATA_PC2 = {
+        "ethernet1": "192.168.3.105",
+        "Wired connection 1": "192.168.3.106",
+        "Wired connection 2": "192.168.3.107"
+    }  
+    
+    first_pc = "http://192.168.3.100:5501/api/v1/set_network"
+    second_pc = "http://192.168.3.101:5501/api/v1/set_network"
+
+    superuser_password =  os.getenv("SUPERUSER")
+    reset_network_results = {}
+    try:
+        
+        res = requests.post(first_pc, auth=("superuser", superuser_password), json=DEFAULT_NET_DATA_PC1, verify=False, timeout=5)
+        reset_network_results["first_pc"] = {
+            "status_code": res.status_code,
+            "response": res.json() if res.headers.get("Content-Type") == "application/json" else res.text
+        }
+    except Exception as e:
+        reset_network_results["first_pc"] = f"Error: {e}"
+        print(f"Error: {e}")
+      
+    try:
+   
+        res = requests.post(second_pc, auth=("superuser", superuser_password), json=DEFAULT_NET_DATA_PC2, verify=False, timeout=5)
+        reset_network_results["second_pc"] = {
+            "status_code": res.status_code,
+            "response": res.json() if res.headers.get("Content-Type") == "application/json" else res.text
+        }
+    except Exception as e:
+        reset_network_results["second_pc"] = f"Error: {e}"
+        print(f"Error: {e}")  
+        
     ##### 最後一步, 重啟電腦
     # subprocess.run(
     #     ["sudo", "reboot"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE

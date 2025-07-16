@@ -250,11 +250,9 @@
                         Error Table
                     </a>
                 </li>
-                {% if user == 'superuser' or user =='root' or user == 'admin'%}
                 <li class="nav-item nav-inspection">
                     <a class="nav-link" href="/inspection"> Inspection </a>
                 </li>
-                {% endif %}
                 <li class="nav-item nav-fwstatus">
                     <a class="nav-link" href="/fwStatus"> FW Status </a>
                 </li>
@@ -904,10 +902,12 @@
         resetTimerLight();
 
         $(".data-unlock").click(function () {
-            unlock += 1;
-            if (unlock >= 5) {
-                unlock = 0;
-                window.location.href = "/";
+            if (window.location.pathname === "/fwStatus") {
+                unlock += 1;
+                if (unlock >= 5) {
+                    unlock = 0;
+                    window.location.href = "/";
+                }
             }
         });
 

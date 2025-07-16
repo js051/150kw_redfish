@@ -1364,7 +1364,7 @@ warning_data = {
         "AmbientTemp_High": False,
         "RelativeHumid_Low": False,
         "RelativeHumid_High": False,
-        "DewPoint_Low": False,
+        "DewPoint_High": False,
         "pH_Low": False,
         "pH_High": False,
         "Cdct_Low": False,
@@ -1390,7 +1390,7 @@ warning_data = {
         "AmbientTemp_High": False,
         "RelativeHumid_Low": False,
         "RelativeHumid_High": False,
-        "DewPoint_Low": False,
+        "DewPoint_High": False,
         "pH_Low": False,
         "pH_High": False,
         "Cdct_Low": False,
@@ -2394,20 +2394,27 @@ def check_dewPt_warning(thr_key, rst_key, delay_key, type):
     prefix = "W_" if type == "W" else "A_"
 
     t1 = warning_data["error"]["Temp_ClntSply_broken"]
+    t1sp = warning_data["error"]["Temp_ClntSplySpare_broken"]
 
-    if t1:
+    if t1 and t1sp:
+        warning_data["alert"][short_key + "_High"] = False
+        return False
+    elif t1:
         set_data = status_data["TempClntSplySpare"]
     else:
         set_data = status_data["TempClntSply"]
-
+        
+        
     try:
         if time_data["check"][prefix + short_key]:
-            if set_data > status_data[short_key] + thrshd_data[rst_key]:
+            # if set_data > status_data[short_key] + thrshd_data[rst_key]:
+            if status_data[short_key] < set_data + thrshd_data[rst_key]:
+                
                 time_data["check"][prefix + short_key] = False
                 if prefix.startswith("W_"):
-                    warning_data["warning"][short_key + "_Low"] = False
+                    warning_data["warning"][short_key + "_High"] = False
                 else:
-                    warning_data["alert"][short_key + "_Low"] = False
+                    warning_data["alert"][short_key + "_High"] = False
                 return False
             else:
                 time_data["end"][prefix + short_key] = time.perf_counter()
@@ -2420,19 +2427,21 @@ def check_dewPt_warning(thr_key, rst_key, delay_key, type):
                 if passed_time > thrshd_data[delay_key]:
                     # time_data["check"][prefix + short_key] = False
                     if prefix.startswith("W_"):
-                        warning_data["warning"][short_key + "_Low"] = True
+                        warning_data["warning"][short_key + "_High"] = True
                     else:
-                        warning_data["alert"][short_key + "_Low"] = True
+                        warning_data["alert"][short_key + "_High"] = True
                     return True
         else:
-            if set_data < status_data[short_key] + thrshd_data[thr_key]:
+            # if set_data < status_data[short_key] + thrshd_data[thr_key]:
+            if status_data[short_key] > set_data + thrshd_data[thr_key]:
+                
                 time_data["start"][prefix + short_key] = time.perf_counter()
                 time_data["check"][prefix + short_key] = True
             else:
                 if prefix.startswith("W_"):
-                    warning_data["warning"][short_key + "_Low"] = False
+                    warning_data["warning"][short_key + "_High"] = False
                 else:
-                    warning_data["alert"][short_key + "_Low"] = False
+                    warning_data["alert"][short_key + "_High"] = False
                 return False
     except Exception as e:
         print(f"check dewPt warning error：{e}")
@@ -2849,7 +2858,7 @@ def set_warning_registers(mode):
         "Delay_DewPoint",
         "A",
     )
-    if warning_data["alert"]["DewPoint_Low"]:
+    if warning_data["alert"]["DewPoint_High"]:
         try:
             with ModbusTcpClient(
                 host=modbus_host, port=modbus_port, unit=modbus_slave_id
@@ -5627,9 +5636,11 @@ def control():
                                                 not value
                                             )
                             if int(diff) > error_check_time:
-                                inspection_data["step"] +=1
-                                
-                                
+                                inspection_data["step"] += 1
+                                inspection_data["end_time"] = time.time()
+                                inspection_data["mid_time"] = inspection_data[
+                                    "end_time"
+                                ]
                                 change_progress("pump_test1", "standby")
                                 send_progress(67, "pump_test1")
                                 
@@ -6004,11 +6015,11 @@ def control():
                             set_f7(speed)
                             set_f8(speed)
                             
-                            test_ac_8 = status_data["AC"]
-                            test_ap_1 = raw_485_data_eletricity["apparent_power"]
+                            fan_test_ac_1 = status_data["AC"]
+                            fan_test_ap_1 = raw_485_data_eletricity["apparent_power"]
                             
-                            write_measured_data(2084, test_ac_8) 
-                            write_measured_data(2086, test_ap_1)
+                            write_measured_data(2084, fan_test_ac_1) 
+                            write_measured_data(2086, fan_test_ap_1)
                             
                                                         
                             inspection_data["end_time"] = time.time()
@@ -6044,11 +6055,11 @@ def control():
                             set_f8(speed)
                           
                           
-                            test_ac_9 = status_data["AC"]
-                            test_ap_2 = raw_485_data_eletricity["apparent_power"]
+                            fan_test_ac_2 = status_data["AC"]
+                            fan_test_ap_2 = raw_485_data_eletricity["apparent_power"]
                             
-                            write_measured_data(2088, test_ac_9) 
-                            write_measured_data(2090, test_ap_2)
+                            write_measured_data(2088, fan_test_ac_2) 
+                            write_measured_data(2090, fan_test_ap_2)
                             
                                                         
                             inspection_data["end_time"] = time.time()
@@ -6084,11 +6095,11 @@ def control():
                             set_f7(speed)
                             set_f8(speed)
                           
-                            test_ac_10 = status_data["AC"]
-                            test_ap_3 = raw_485_data_eletricity["apparent_power"]
+                            fan_test_ac_3 = status_data["AC"]
+                            fan_test_ap_3 = raw_485_data_eletricity["apparent_power"]
                             
-                            write_measured_data(2092, test_ac_10) 
-                            write_measured_data(2094, test_ap_3)
+                            write_measured_data(2092, fan_test_ac_3) 
+                            write_measured_data(2094, fan_test_ap_3)
                             
                                                         
                             inspection_data["end_time"] = time.time()

@@ -1299,11 +1299,11 @@ styles %}
                         <td class="w10 tdCenterAlign" id="fan_test1_status">
                             *
                         </td>
-                        <td class="w10 tdCenterAlign" id="test_ac_8_measure">
+                        <td class="w10 tdCenterAlign" id="fan_test_ac_1_measure">
                             *
                         </td>
                         <!-- <td class="w16 tdCenterAlign" id="p1_speed_stat"></td> -->
-                        <td class="w10 tdCenterAlign" id="test_ap_1_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="fan_test_ap_1_measure">*</td>
                         <td class="w10 tdCenterAlign"></td>
                         <td class="w10 tdCenterAlign"></td>
                         <td class="w10 tdCenterAlign"></td>
@@ -1314,11 +1314,11 @@ styles %}
                         <td class="w10 tdCenterAlign" id="fan_test2_status">
                             *
                         </td>
-                        <td class="w10 tdCenterAlign" id="test_ac_9_measure">
+                        <td class="w10 tdCenterAlign" id="fan_test_ac_2_measure">
                             *
                         </td>
                         <!-- <td class="w16 tdCenterAlign" id="p1_speed_stat"></td> -->
-                        <td class="w10 tdCenterAlign" id="test_ap_2_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="fan_test_ap_2_measure">*</td>
                         <td class="w10 tdCenterAlign"></td>
                         <td class="w10 tdCenterAlign"></td>
                         <td class="w10 tdCenterAlign"></td>
@@ -1329,11 +1329,11 @@ styles %}
                         <td class="w10 tdCenterAlign" id="fan_test3_status">
                             *
                         </td>
-                        <td class="w10 tdCenterAlign" id="test_ac_10_measure">
+                        <td class="w10 tdCenterAlign" id="fan_test_ac_3_measure">
                             *
                         </td>
                         <!-- <td class="w16 tdCenterAlign" id="p1_speed_stat"></td> -->
-                        <td class="w10 tdCenterAlign" id="test_ap_3_measure">*</td>
+                        <td class="w10 tdCenterAlign" id="fan_test_ap_3_measure">*</td>
                         <td class="w10 tdCenterAlign"></td>
                         <td class="w10 tdCenterAlign"></td>
                         <td class="w10 tdCenterAlign"></td>
@@ -1797,8 +1797,8 @@ styles %}
                             "PartNumber"
                         ]
                         let nameMap = {
-                            "SMC": "SMC SN",
-                            "SN": "SN",
+                            "SMC": "Serial Number", // SMC SN
+                            "SN": "Kaori SN", // Kaori SN
                             "Model": "Model",
                             "PartNumber": "Part Number"
                         };
@@ -1837,18 +1837,17 @@ styles %}
                     if (fw_info_version) {
                         let order = [
                             "WebUI",
-                            // "SCC_API",
-                            // "SNMP",
-                            // "Modbus_Server",
-                            // "Redfish_Server",
                             "PLC",
-                            "Release_Time"
+                            "Release_Time",
+                            "inspection",
                         ]
                         // 對應顯示名稱
                         let nameMap = {
                             "WebUI": "System Software",
                             "PLC": "Control Firmware",
-                            "Release_Time": "Release_Date"
+                            "Release_Time": "Release_Date",
+                            "inspection" : "Inspection Version"
+
                         };
 
                         order.forEach(key => {
@@ -1924,7 +1923,7 @@ styles %}
                         }
                     });
 
-                    let final_r = r1 + "\n" + r2 + "\n" + "Check Sum : " + checkSum;
+                    let final_r = r1 + "\n" + r2 + "\n" + "Check Sum : " + checkSum.toFixed(2);
 
                     const now = new Date();
                     const timestamp = now

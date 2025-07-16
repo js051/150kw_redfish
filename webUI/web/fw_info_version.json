@@ -6,5 +6,6 @@
     "Redfish_Server": "0108",
     "Modbus_Server": "0101",
     "PLC": "0000",
-    "Release_Time": "2025-07-03"
+    "Release_Time": "2025-07-03",
+    "inspection": "2.0"
 }
